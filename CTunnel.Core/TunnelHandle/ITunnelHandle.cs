@@ -5,7 +5,7 @@ namespace CTunnel.Core.TunnelHandle
 {
     public interface ITunnelHandle
     {
-        public Task HandleAsync(TunnelModel tunnel, TcpClient tcpClient);
+        public Task HandleAsync(TunnelModel tunnel, TcpClient requestClient);
 
         public Task<bool> IsCloseAsync(TunnelModel tunnel);
     }

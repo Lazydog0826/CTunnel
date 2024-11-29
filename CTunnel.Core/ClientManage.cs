@@ -1,11 +1,9 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
-using System.Net.WebSockets;
 using CTunnel.Core.Expand;
 using CTunnel.Core.Model;
 using CTunnel.Core.TunnelHandle;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CTunnel.Core
@@ -14,48 +12,40 @@ namespace CTunnel.Core
     {
         public ConcurrentDictionary<string, TunnelModel> Tunnels { get; set; } = [];
 
-        public async Task NewClientAsync(HttpContext httpContext)
+        private readonly object _lock = new();
+
+        public async Task NewClientAsync(TcpClient tcpClient)
         {
-            var socket = await httpContext.WebSockets.AcceptWebSocketAsync();
-            var newTunnel = httpContext.ReadParameter();
+            var createTunnelModel = await tcpClient.ReadCreateTunnelModelAsync();
 
-            if (newTunnel != null)
+            if (createTunnelModel != null)
             {
-                Console.WriteLine("连接，ID = " + newTunnel.Id);
-                if (Tunnels.TryGetValue(newTunnel.Id, out var tunnel))
-                {
-                    tunnel.ConnectionPool.Add(socket);
-                }
-                else
-                {
-                    newTunnel.ConnectionPool.Add(socket);
-                    Tunnels.TryAdd(newTunnel.Id, newTunnel);
-                    _ = Task.Run(() => CreateListenAsync(newTunnel));
-                }
+                Console.WriteLine("连接，ID = " + createTunnelModel.Id);
 
-                while (
-                    socket.State == WebSocketState.Open || socket.State == WebSocketState.Connecting
-                ) { }
-                if (Tunnels.TryGetValue(newTunnel.Id, out tunnel))
+                lock (_lock)
                 {
-                    var tunnelHandle =
-                        HostApp.ServiceProvider.GetRequiredKeyedService<ITunnelHandle>(
-                            tunnel.Type.ToString()
-                        );
-                    if (await tunnelHandle.IsCloseAsync(tunnel))
+                    if (Tunnels.TryGetValue(createTunnelModel.Id, out var tunnel))
                     {
-                        Console.WriteLine("隧道关闭，ID = " + newTunnel.Id);
-                        Tunnels.Remove(newTunnel.Id, out tunnel);
+                        tunnel.ConnectionPool.Add(tcpClient);
+                    }
+                    else
+                    {
+                        var newTunnel = new TunnelModel
+                        {
+                            AuthCode = createTunnelModel.AuthCode,
+                            Id = createTunnelModel.Id,
+                            ListenPort = createTunnelModel.ListenPort,
+                            Type = createTunnelModel.Type
+                        };
+                        newTunnel.ConnectionPool.Add(tcpClient);
+                        Tunnels.TryAdd(newTunnel.Id, newTunnel);
+                        _ = Task.Run(() => CreateListenAsync(newTunnel));
                     }
                 }
             }
             else
             {
-                await socket.CloseAsync(
-                    WebSocketCloseStatus.MandatoryExtension,
-                    string.Empty,
-                    new CancellationTokenSource().Token
-                );
+                tcpClient.Close();
             }
         }
 
@@ -63,13 +53,44 @@ namespace CTunnel.Core
         {
             tunnelModel.Listener = new TcpListener(IPAddress.Any, tunnelModel.ListenPort);
             tunnelModel.Listener.Start();
-            while (true)
+            Console.WriteLine("已监听：" + tunnelModel.ListenPort);
+            var cancellationToken = new CancellationTokenSource();
+
+            var tunnelHandle = HostApp.ServiceProvider.GetRequiredKeyedService<ITunnelHandle>(
+                tunnelModel.Type.ToString()
+            );
+
+            tunnelModel.Timer = new Timer(
+                async state =>
+                {
+                    if (await tunnelHandle.IsCloseAsync(tunnelModel))
+                    {
+                        (state as Timer)?.Dispose();
+                        Console.WriteLine("隧道关闭，ID = " + tunnelModel.Id);
+                        Tunnels.Remove(tunnelModel.Id, out var _);
+                        tunnelModel.Listener.Stop();
+                        await cancellationToken.CancelAsync();
+                    }
+                },
+                null,
+                TimeSpan.Zero,
+                TimeSpan.FromSeconds(3)
+            );
+
+            while (!cancellationToken.IsCancellationRequested)
             {
-                var tcpClient = await tunnelModel.Listener.AcceptTcpClientAsync();
-                var tunnelHandle = HostApp.ServiceProvider.GetRequiredKeyedService<ITunnelHandle>(
-                    tunnelModel.Type.ToString()
+                var tcpClient = await tunnelModel.Listener.AcceptTcpClientAsync(
+                    cancellationToken.Token
                 );
-                await tunnelHandle.HandleAsync(tunnelModel, tcpClient);
+                Console.WriteLine("浏览器连接，ID = " + tunnelModel.Id);
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await tunnelHandle.HandleAsync(tunnelModel, tcpClient);
+                    }
+                    catch { }
+                });
             }
         }
     }
