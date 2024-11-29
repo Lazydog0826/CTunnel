@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "CTunnel.Console.Client": {
+      "commandName": "Project",
+      "commandLineArgs": "-s 127.0.0.1 -sp 5194 -lp 8800 -a abc -tt Http -t 127.0.0.1 -tp 5500"
+    }
+  }
+}
