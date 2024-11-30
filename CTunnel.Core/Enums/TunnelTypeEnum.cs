@@ -2,7 +2,8 @@
 {
     public enum TunnelTypeEnum
     {
-        Http = 0,
-        Tcp = 1
+        Web = 0,
+        Tcp = 1,
+        Udp = 2
     }
 }

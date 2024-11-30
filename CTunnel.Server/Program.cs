@@ -5,13 +5,14 @@ using Microsoft.AspNetCore.WebSockets;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddWebSockets(opt => { });
+builder.Services.AddSingleton<TunnelContext>();
 builder.Services.AddSingleton<ClientManage>();
 builder.Services.AddKeyedSingleton<ITunnelHandle, HttpTunnelHandle>(nameof(TunnelTypeEnum.Http));
-builder.Services.AddHostedService<TcpListenHostService>();
 builder.Services.AddControllers();
 var app = builder.Build();
 HostApp.ServiceProvider = app.Services;
 app.UseWebSockets();
+app.UseMiddleware<ListenWebSocketMiddleware>();
 app.UseStaticFiles();
 app.MapControllers();
 app.Run();

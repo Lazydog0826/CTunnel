@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using CTunnel.Core.Enums;
 
 namespace CTunnel.Core.Model
@@ -8,18 +9,20 @@ namespace CTunnel.Core.Model
     {
         public string Id { get; set; } = string.Empty;
 
-        public string AuthCode { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;
 
         public int ListenPort { get; set; }
 
         public TunnelTypeEnum Type { get; set; }
 
-        public BlockingCollection<TcpClient> ConnectionPool { get; set; } = [];
+        public WebSocket WebSocket { get; set; } = null!;
 
-        public TcpClient LongConnection { get; set; } = null!;
+        //public BlockingCollection<TcpClient> ConnectionPool { get; set; } = [];
 
-        public TcpListener Listener { get; set; } = null!;
+        //public TcpClient LongConnection { get; set; } = null!;
 
-        public Timer Timer { get; set; } = null!;
+        //public TcpListener Listener { get; set; } = null!;
+
+        //public Timer Timer { get; set; } = null!;
     }
 }
