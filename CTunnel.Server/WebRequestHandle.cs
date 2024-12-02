@@ -16,6 +16,7 @@ namespace CTunnel.Server
     {
         public async Task HandleAsync(Socket socket, X509Certificate2 x509Certificate2)
         {
+            // 启用安全套接字
             var sslStream = new SslStream(new NetworkStream(socket), false);
             await sslStream.AuthenticateAsServerAsync(
                 x509Certificate2,
@@ -23,135 +24,157 @@ namespace CTunnel.Server
                 SslProtocols.Tls13,
                 true
             );
+            // 读取请求数据匹配HOST分配给不同的隧道
             var memory = new Memory<byte>(new byte[1024 * 1024]);
-            int count;
-            while ((count = await sslStream.ReadAsync(memory)) > 0)
+            var count = await sslStream.ReadAsync(memory);
+            var message = Encoding.UTF8.GetString(memory[..count].ToArray());
+            var match = HostMatchRegex().Match(message);
+            if (string.IsNullOrWhiteSpace(match.Value))
             {
-                var message = Encoding.UTF8.GetString(memory[..count].ToArray());
-                var match = HostMatchRegex().Match(message);
-                if (string.IsNullOrWhiteSpace(match.Value))
-                {
-                    socket.Close();
-                    return;
-                }
-                var host = match.Value.Replace("Host: ", string.Empty);
-                var tunnel = _tunnelContext.GetTunnel(host);
-                if (tunnel == null)
-                {
-                    await sslStream.NotEnablAsync();
-                    socket.Close();
-                    return;
-                }
-                var subConnect = new TunnelSubConnectModel
-                {
-                    RequestId = Guid.NewGuid().ToString(),
-                    CancellationTokenSource = new CancellationTokenSource(),
-                    Socket = socket
-                };
-                subConnect.ClientRequestConnectEvent += async (webSocket) =>
-                {
-                    await webSocket.SendAsync(
-                        memory[..count].ToArray(),
-                        WebSocketMessageType.Binary,
-                        true,
-                        subConnect.CancellationTokenSource.Token
-                    );
-                    var t1 = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await webSocket.ForwardAsync(
-                                sslStream,
-                                subConnect.CancellationTokenSource.Token
-                            );
-                        }
-                        catch { }
-                        finally
-                        {
-                            await webSocket.CloseAsync(
-                                WebSocketCloseStatus.Empty,
-                                string.Empty,
-                                CancellationToken.None
-                            );
-                            await subConnect.CancellationTokenSource.CancelAsync();
-                        }
-                    });
-                    var t2 = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await sslStream.ForwardAsync(
-                                webSocket,
-                                subConnect.CancellationTokenSource.Token
-                            );
-                        }
-                        catch { }
-                        finally
-                        {
-                            sslStream.Close();
-                            await subConnect.CancellationTokenSource.CancelAsync();
-                        }
-                    });
+                socket.Close();
+                return;
+            }
+            var host = match
+                .Value.Replace("Host: ", string.Empty)
+                .Replace("\n", string.Empty)
+                .Replace("\r", string.Empty);
+            var tunnel = _tunnelContext.GetTunnel(host);
+            if (tunnel == null)
+            {
+                await sslStream.NotEnablAsync();
+                socket.Close();
+                return;
+            }
 
-                    await Task.WhenAll(t1, t2);
-                };
-                subConnect.PulseCheck = new Timer(
-                    async _ =>
-                    {
-                        try
-                        {
-                            if (subConnect.WebSocket == null)
-                            {
-                                throw new Exception();
-                            }
-                        }
-                        catch
-                        {
-                            socket.Close();
-                            await subConnect.PulseCheck.DisposeAsync();
-                            await subConnect.CancellationTokenSource.CancelAsync();
-                            if (subConnect != null)
-                            {
-                                await subConnect.WebSocket.CloseAsync(
-                                    WebSocketCloseStatus.Empty,
-                                    string.Empty,
-                                    CancellationToken.None
-                                );
-                            }
-                        }
-                    },
-                    null,
-                    GlobalStaticConfig.Interval,
-                    GlobalStaticConfig.Interval
+            // 定义隧道子连接
+            var subConnect = new TunnelSubConnectModel
+            {
+                RequestId = Guid.NewGuid().ToString(),
+                CancellationTokenSource = new CancellationTokenSource(),
+                Socket = socket
+            };
+
+            // 客户端子连接事件
+            subConnect.ClientRequestConnectEvent += async (webSocket) =>
+            {
+                subConnect.WebSocket = webSocket;
+
+                // 把初始请求先转发给客户端
+                await webSocket.SendAsync(
+                    memory[..count].ToArray(),
+                    WebSocketMessageType.Binary,
+                    true,
+                    subConnect.CancellationTokenSource.Token
                 );
-                if (tunnel.SubConnect.TryAdd(subConnect.RequestId, subConnect))
-                {
-                    await tunnel.WebSocket.SendAsync(
-                        Encoding.UTF8.GetBytes(
-                            JsonConvert.SerializeObject(
-                                new WebSocketMessageModel
-                                {
-                                    MessageType = Share.Enums.WebSocketMessageTypeEnum.NewRequest,
-                                    JsonData = JsonConvert.SerializeObject(
-                                        new NewRequestModel
-                                        {
-                                            RequestId = subConnect.RequestId,
-                                            DomainName = host
-                                        }
-                                    )
-                                }
-                            )
-                        ),
-                        WebSocketMessageType.Text,
-                        true,
-                        subConnect.CancellationTokenSource.Token
-                    );
 
-                    await Task.Delay(
-                        GlobalStaticConfig.TenYears,
-                        subConnect.CancellationTokenSource.Token
-                    );
-                }
+                // 然后开启两个任务用来转发后面的数据
+                var t1 = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await webSocket.ForwardAsync(
+                            sslStream,
+                            subConnect.CancellationTokenSource.Token
+                        );
+                    }
+                    catch { }
+                    finally
+                    {
+                        await webSocket.TryCloseAsync();
+                        await subConnect.CancellationTokenSource.CancelAsync();
+                    }
+                });
+                var t2 = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await sslStream.ForwardAsync(
+                            webSocket,
+                            subConnect.CancellationTokenSource.Token
+                        );
+                    }
+                    catch { }
+                    finally
+                    {
+                        await socket.TryCloseAsync();
+                        await subConnect.CancellationTokenSource.CancelAsync();
+                    }
+                });
+
+                // 等待转发完成
+                await Task.WhenAll(t1, t2);
+            };
+
+            // 定义心跳检查计时器
+            subConnect.PulseCheck = new Timer(
+                async _ =>
+                {
+                    try
+                    {
+                        // 五秒内客户端没有完成请求连接，代表失败
+                        if (subConnect.WebSocket == null)
+                        {
+                            throw new Exception();
+                        }
+                        // 发送一个0作为心跳检查
+                        await subConnect.WebSocket.SendAsync(
+                            new byte[1] { 0 },
+                            WebSocketMessageType.Binary,
+                            true,
+                            subConnect.CancellationTokenSource.Token
+                        );
+                    }
+                    catch
+                    {
+                        // 标记取消和关闭计时器
+                        await subConnect.CancellationTokenSource.CancelAsync();
+                        await subConnect.PulseCheck.DisposeAsync();
+
+                        // 关闭外部请求
+                        await socket.TryCloseAsync();
+                        await subConnect.WebSocket.TryCloseAsync();
+
+                        // 最后从隧道子连接中移除
+                        tunnel.SubConnect.Remove(subConnect.RequestId, out var _);
+                    }
+                },
+                null,
+                GlobalStaticConfig.Interval,
+                GlobalStaticConfig.Interval
+            );
+
+            // 把子连接添加到隧道
+            if (tunnel.SubConnect.TryAdd(subConnect.RequestId, subConnect))
+            {
+                // 发送新请求到客户端，让客户端新建一个WebSocket连接用来转发这个请求
+                await tunnel.WebSocket.SendAsync(
+                    Encoding.UTF8.GetBytes(
+                        JsonConvert.SerializeObject(
+                            new WebSocketMessageModel
+                            {
+                                MessageType = Share.Enums.WebSocketMessageTypeEnum.NewRequest,
+                                JsonData = JsonConvert.SerializeObject(
+                                    new NewRequestModel
+                                    {
+                                        RequestId = subConnect.RequestId,
+                                        DomainName = host
+                                    }
+                                )
+                            }
+                        )
+                    ),
+                    WebSocketMessageType.Binary,
+                    true,
+                    subConnect.CancellationTokenSource.Token
+                );
+
+                Log.Write("发送新请求给客户端");
+
+                // 一直等待，直到这个子连接取消
+                await Task.Delay(
+                    Timeout.InfiniteTimeSpan,
+                    subConnect.CancellationTokenSource.Token
+                );
             }
         }
 

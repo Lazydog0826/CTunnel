@@ -1,8 +1,8 @@
 ﻿using System.Collections.Concurrent;
-using System.Net.WebSockets;
 using System.Text;
 using CTunnel.Server.WebSocketMessageHandle;
 using CTunnel.Share;
+using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
 using Newtonsoft.Json;
 
@@ -25,11 +25,7 @@ namespace CTunnel.Server
         {
             if (!_tunnels.TryAdd(tunnelModel.DomainName, tunnelModel))
             {
-                await tunnelModel.WebSocket.CloseAsync(
-                    WebSocketCloseStatus.Empty,
-                    string.Empty,
-                    CancellationToken.None
-                );
+                await tunnelModel.WebSocket.TryCloseAsync();
             }
         }
 
@@ -49,7 +45,7 @@ namespace CTunnel.Server
                 var memory = new Memory<byte>(new byte[1024 * 1024]);
 
                 // 接收类型消息
-                var receiveRes = socket.ReceiveAsync(memory, timeout.Token);
+                var receiveRes = await socket.ReceiveAsync(memory, timeout.Token);
                 var model = JsonConvert.DeserializeObject<WebSocketMessageModel>(
                     Encoding.UTF8.GetString(memory.ToArray())
                 )!;
@@ -63,11 +59,7 @@ namespace CTunnel.Server
             }
             catch
             {
-                await socket.CloseAsync(
-                    WebSocketCloseStatus.Empty,
-                    string.Empty,
-                    CancellationToken.None
-                );
+                await socket.TryCloseAsync();
             }
         }
     }

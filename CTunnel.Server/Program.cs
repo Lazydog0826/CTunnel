@@ -1,4 +1,5 @@
 using CTunnel.Server;
+using CTunnel.Server.TunnelHandle;
 using CTunnel.Server.WebSocketMessageHandle;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
@@ -23,6 +24,12 @@ builder.Services.AddKeyedSingleton<IWebSocketMessageHandle, WebSocketMessageHand
 );
 
 #endregion 注入IWebSocketMessageHandle实现
+
+#region 注入ITunnelHandle实现
+
+builder.Services.AddKeyedSingleton<ITunnelHandle, TunnelHandle_Web>(TunnelTypeEnum.Web.ToString());
+
+#endregion 注入ITunnelHandle实现
 
 builder.Services.AddControllers();
 var app = builder.Build();

@@ -38,21 +38,6 @@ namespace CTunnel.Share.Model
         public CancellationTokenSource CancellationTokenSource { get; set; } = null!;
 
         /// <summary>
-        /// 关闭连接
-        /// </summary>
-        /// <returns></returns>
-        public async Task CloseConnectAsync()
-        {
-            await CancellationTokenSource.CancelAsync();
-            await WebSocket.CloseAsync(
-                WebSocketCloseStatus.Empty,
-                string.Empty,
-                CancellationToken.None
-            );
-            await PulseCheck.DisposeAsync();
-        }
-
-        /// <summary>
         /// 触发事件
         /// </summary>
         /// <param name="webSocket"></param>

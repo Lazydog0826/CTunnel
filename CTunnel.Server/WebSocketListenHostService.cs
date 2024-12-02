@@ -9,6 +9,7 @@ namespace CTunnel.Server
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            // 统一监听443端口作为WEB服务
             var appConfig = HostApp.GetConfig<AppConfig>();
             var x509Certificate2 = new X509Certificate2(
                 appConfig.Certificate,
@@ -21,7 +22,7 @@ namespace CTunnel.Server
             );
             socker.Bind(new IPEndPoint(IPAddress.Any, 443));
             socker.Listen();
-            Console.WriteLine("正在监听443端口...");
+            Log.Write("正在监听443端口...");
             while (true)
             {
                 var request = await socker.AcceptAsync(stoppingToken);
@@ -38,6 +39,10 @@ namespace CTunnel.Server
                             await _webRequestHandle.HandleAsync(request, x509Certificate2);
                         }
                         catch { }
+                        finally
+                        {
+                            request.Close();
+                        }
                     },
                     stoppingToken
                 );

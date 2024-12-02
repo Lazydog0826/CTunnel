@@ -10,6 +10,11 @@ namespace CTunnel.Share.Model
         public string Token { get; set; } = string.Empty;
 
         /// <summary>
+        /// 域名
+        /// </summary>
+        public string DomainName { get; set; } = string.Empty;
+
+        /// <summary>
         /// 监听端口
         /// </summary>
         public int ListenPort { get; set; }
