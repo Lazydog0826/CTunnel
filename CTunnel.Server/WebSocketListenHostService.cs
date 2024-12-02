@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using CTunnel.Share;
+using CTunnel.Share.Expand;
 
 namespace CTunnel.Server
 {
@@ -11,9 +12,13 @@ namespace CTunnel.Server
         {
             // 统一监听443端口作为WEB服务
             var appConfig = HostApp.GetConfig<AppConfig>();
-            var x509Certificate2 = new X509Certificate2(
-                appConfig.Certificate,
-                appConfig.CertificatePassword
+
+            var certPem = File.ReadAllText(appConfig.Certificate);
+            var keyPem = File.ReadAllText(appConfig.CertificateKey);
+            var x509Certificate2 = X509Certificate2.CreateFromPem(certPem, keyPem);
+            x509Certificate2 = new X509Certificate2(
+                x509Certificate2.Export(X509ContentType.Pfx, "123456"),
+                "123456"
             );
             var socker = new Socket(
                 AddressFamily.InterNetwork,
@@ -28,7 +33,7 @@ namespace CTunnel.Server
                 var request = await socker.AcceptAsync(stoppingToken);
                 if (request.ProtocolType != ProtocolType.Tcp)
                 {
-                    request.Close();
+                    await request.TryCloseAsync();
                     continue;
                 }
                 _ = Task.Run(
@@ -41,7 +46,7 @@ namespace CTunnel.Server
                         catch { }
                         finally
                         {
-                            request.Close();
+                            await request.TryCloseAsync();
                         }
                     },
                     stoppingToken

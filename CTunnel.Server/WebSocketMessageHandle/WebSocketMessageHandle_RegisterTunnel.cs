@@ -1,5 +1,4 @@
 ﻿using System.Net.WebSockets;
-using System.Text;
 using CTunnel.Server.TunnelHandle;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
@@ -18,24 +17,32 @@ namespace CTunnel.Server.WebSocketMessageHandle
     {
         public async Task HandleAsync(WebSocket webSocket, string data)
         {
-            // 验证TOKEN对不对
-            var dataModel = JsonConvert.DeserializeObject<RegisterTunnelModel>(data)!;
-            var appConfig = HostApp.GetConfig<AppConfig>();
-            if (dataModel.Token != appConfig.Token)
-            {
-                throw new Exception();
-            }
+            var registerTunnel = JsonConvert.DeserializeObject<RegisterTunnelModel>(data)!;
 
             // 新建隧道模型
             var newTunne = new TunnelModel
             {
                 CancellationTokenSource = new CancellationTokenSource(),
                 WebSocket = webSocket,
-                FileSharingPath = dataModel.FileSharingPath,
-                ListenPort = dataModel.ListenPort,
-                Type = dataModel.Type,
-                DomainName = dataModel.DomainName
+                FileSharingPath = registerTunnel.FileSharingPath,
+                ListenPort = registerTunnel.ListenPort,
+                Type = registerTunnel.Type,
+                DomainName = registerTunnel.DomainName
             };
+
+            var appConfig = HostApp.GetConfig<AppConfig>();
+            if (registerTunnel.Token != appConfig.Token)
+            {
+                await webSocket.SendResponseMessageAsync(
+                    "Token验证未通过",
+                    false,
+                    WebSocketMessageTypeEnum.RegisterTunnel,
+                    newTunne.CancellationTokenSource.Token
+                );
+                Log.Write("新的请求连接Token验证未通过");
+                await webSocket.TryCloseAsync();
+                return;
+            }
 
             // 创建心跳检查计时器
             newTunne.PulseCheck = new Timer(
@@ -43,38 +50,13 @@ namespace CTunnel.Server.WebSocketMessageHandle
                 {
                     try
                     {
-                        // 发送心跳包
-                        // 任何报错代表连接已经断开
-                        var message = JsonConvert.SerializeObject(
-                            new WebSocketMessageModel
-                            {
-                                JsonData = string.Empty,
-                                MessageType = WebSocketMessageTypeEnum.PulseCheck
-                            }
-                        );
-                        var bytes = Encoding.UTF8.GetBytes(message);
-                        await webSocket.SendAsync(
-                            bytes,
-                            WebSocketMessageType.Binary,
-                            true,
-                            newTunne.CancellationTokenSource.Token
-                        );
+                        // 发送心跳包，任何报错代表连接已经断开
+                        await webSocket.PulseCheckAsync(newTunne.CancellationTokenSource.Token);
                     }
                     catch
                     {
-                        // 标记取消和关闭计时器
-                        await newTunne.CancellationTokenSource.CancelAsync();
-                        await newTunne.PulseCheck.DisposeAsync();
-
-                        // 主连接关闭
-                        await webSocket.TryCloseAsync();
-
-                        // 子链接全部断开
-                        foreach (var item in newTunne.SubConnect)
-                        {
-                            await item.Value.WebSocket.TryCloseAsync();
-                            await item.Value.Socket.TryCloseAsync();
-                        }
+                        // 关闭所有相关内容
+                        await newTunne.CloseAllAsync();
 
                         // 最后从上下文中移除当前隧道
                         await _tunnelContext.RemoveAsync(newTunne);
@@ -86,30 +68,34 @@ namespace CTunnel.Server.WebSocketMessageHandle
             );
 
             // 添加到隧道上下文
-            await _tunnelContext.AddTunnelAsync(newTunne);
+            var isAdd = await _tunnelContext.AddTunnelAsync(newTunne);
+            if (!isAdd)
+            {
+                await webSocket.SendResponseMessageAsync(
+                    "添加隧道失败，域名可能重复",
+                    false,
+                    WebSocketMessageTypeEnum.RegisterTunnel,
+                    newTunne.CancellationTokenSource.Token
+                );
+                Log.Write("添加隧道失败，域名可能重复");
+                await webSocket.TryCloseAsync();
+                return;
+            }
 
             // 发送注册成功消息给客户端
-            await webSocket.SendAsync(
-                Encoding.UTF8.GetBytes(
-                    JsonConvert.SerializeObject(
-                        new WebSocketMessageModel
-                        {
-                            MessageType = WebSocketMessageTypeEnum.RegisterTunnel,
-                            JsonData = string.Empty
-                        }
-                    )
-                ),
-                WebSocketMessageType.Binary,
+            await webSocket.SendResponseMessageAsync(
+                "成功",
                 true,
-                CancellationToken.None
+                WebSocketMessageTypeEnum.RegisterTunnel,
+                newTunne.CancellationTokenSource.Token
             );
 
             // 根据隧道类型处理
             await HostApp
-                .ServiceProvider.GetRequiredKeyedService<ITunnelHandle>(dataModel.Type.ToString())
+                .ServiceProvider.GetRequiredKeyedService<ITunnelHandle>(
+                    registerTunnel.Type.ToString()
+                )
                 .HandleAsync(newTunne);
-
-            await Task.Delay(Timeout.InfiniteTimeSpan, newTunne.CancellationTokenSource.Token);
         }
     }
 }

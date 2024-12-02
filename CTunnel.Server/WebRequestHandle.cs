@@ -6,9 +6,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using CTunnel.Share;
+using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
-using Newtonsoft.Json;
 
 namespace CTunnel.Server
 {
@@ -31,18 +31,20 @@ namespace CTunnel.Server
             var match = HostMatchRegex().Match(message);
             if (string.IsNullOrWhiteSpace(match.Value))
             {
-                socket.Close();
+                await socket.TryCloseAsync();
                 return;
             }
             var host = match
                 .Value.Replace("Host: ", string.Empty)
                 .Replace("\n", string.Empty)
                 .Replace("\r", string.Empty);
+            Log.Write($"请求Host:{host}");
             var tunnel = _tunnelContext.GetTunnel(host);
             if (tunnel == null)
             {
                 await sslStream.NotEnablAsync();
-                socket.Close();
+                await socket.TryCloseAsync();
+                Log.Write("隧道未找到");
                 return;
             }
 
@@ -114,6 +116,7 @@ namespace CTunnel.Server
                         // 五秒内客户端没有完成请求连接，代表失败
                         if (subConnect.WebSocket == null)
                         {
+                            Log.Write("NewRequest:指定时间内客户端未连接");
                             throw new Exception();
                         }
                         // 发送一个0作为心跳检查
@@ -126,13 +129,8 @@ namespace CTunnel.Server
                     }
                     catch
                     {
-                        // 标记取消和关闭计时器
-                        await subConnect.CancellationTokenSource.CancelAsync();
-                        await subConnect.PulseCheck.DisposeAsync();
-
-                        // 关闭外部请求
-                        await socket.TryCloseAsync();
-                        await subConnect.WebSocket.TryCloseAsync();
+                        // 关闭所有相关内容
+                        await subConnect.CloaseAllAsync();
 
                         // 最后从隧道子连接中移除
                         tunnel.SubConnect.Remove(subConnect.RequestId, out var _);
@@ -147,24 +145,9 @@ namespace CTunnel.Server
             if (tunnel.SubConnect.TryAdd(subConnect.RequestId, subConnect))
             {
                 // 发送新请求到客户端，让客户端新建一个WebSocket连接用来转发这个请求
-                await tunnel.WebSocket.SendAsync(
-                    Encoding.UTF8.GetBytes(
-                        JsonConvert.SerializeObject(
-                            new WebSocketMessageModel
-                            {
-                                MessageType = Share.Enums.WebSocketMessageTypeEnum.NewRequest,
-                                JsonData = JsonConvert.SerializeObject(
-                                    new NewRequestModel
-                                    {
-                                        RequestId = subConnect.RequestId,
-                                        DomainName = host
-                                    }
-                                )
-                            }
-                        )
-                    ),
-                    WebSocketMessageType.Binary,
-                    true,
+                await tunnel.WebSocket.SendMessageAsync(
+                    WebSocketMessageTypeEnum.NewRequest,
+                    new NewRequestModel { RequestId = subConnect.RequestId, DomainName = host },
                     subConnect.CancellationTokenSource.Token
                 );
 

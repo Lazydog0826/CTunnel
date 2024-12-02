@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <Folder Include="Model\" />
-    <Folder Include="Response\" />
+    <Folder Include="wwwroot\" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,5 @@
-﻿using CTunnel.Share.Model;
+﻿using CTunnel.Share.Expand;
+using CTunnel.Share.Model;
 
 namespace CTunnel.Server.TunnelHandle
 {
@@ -9,7 +10,12 @@ namespace CTunnel.Server.TunnelHandle
     {
         public async Task HandleAsync(TunnelModel tunnel)
         {
-            await Task.CompletedTask;
+            while (true)
+            {
+                await tunnel.WebSocket.ReadModelAsync<WebSocketMessageModel>(
+                    tunnel.CancellationTokenSource.Token
+                );
+            }
         }
     }
 }

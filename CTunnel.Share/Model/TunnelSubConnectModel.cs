@@ -1,5 +1,6 @@
 ﻿using System.Net.Sockets;
 using System.Net.WebSockets;
+using CTunnel.Share.Expand;
 
 namespace CTunnel.Share.Model
 {
@@ -48,6 +49,17 @@ namespace CTunnel.Share.Model
             {
                 await ClientRequestConnectEvent.Invoke(webSocket);
             }
+        }
+
+        public async Task CloaseAllAsync()
+        {
+            // 标记取消和关闭计时器
+            await CancellationTokenSource.CancelAsync();
+            await PulseCheck.DisposeAsync();
+
+            // 关闭连接
+            await Socket.TryCloseAsync();
+            await WebSocket.TryCloseAsync();
         }
     }
 }

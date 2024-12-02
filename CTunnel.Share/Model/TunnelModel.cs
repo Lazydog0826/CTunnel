@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using CTunnel.Share.Enums;
+using CTunnel.Share.Expand;
 
 namespace CTunnel.Share.Model
 {
@@ -51,12 +52,7 @@ namespace CTunnel.Share.Model
         /// <summary>
         /// 服务器IP
         /// </summary>
-        public string ServerIp { get; set; } = string.Empty;
-
-        /// <summary>
-        /// 服务器端口
-        /// </summary>
-        public int ServerPort { get; set; }
+        public string ServerHost { get; set; } = string.Empty;
 
         /// <summary>
         /// 目标IP
@@ -69,5 +65,26 @@ namespace CTunnel.Share.Model
         public int TargetPort { get; set; }
 
         #endregion 客户端使用
+
+        /// <summary>
+        /// 关闭所有相关内容
+        /// </summary>
+        /// <returns></returns>
+        public async Task CloseAllAsync()
+        {
+            // 标记取消和关闭计时器
+            await CancellationTokenSource.CancelAsync();
+            await PulseCheck.DisposeAsync();
+
+            // 关闭主连接
+            await WebSocket.TryCloseAsync();
+
+            // 子链接全部断开
+            foreach (var item in SubConnect)
+            {
+                await item.Value.WebSocket.TryCloseAsync();
+                await item.Value.Socket.TryCloseAsync();
+            }
+        }
     }
 }
