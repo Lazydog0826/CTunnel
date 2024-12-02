@@ -7,11 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
+    <ProjectReference Include="..\CTunnel.Share\CTunnel.Share.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CTunnel.Share\CTunnel.Share.csproj" />
+    <Folder Include="Model\" />
+    <Folder Include="Response\" />
   </ItemGroup>
 
 </Project>
