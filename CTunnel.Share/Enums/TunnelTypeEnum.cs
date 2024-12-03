@@ -4,7 +4,6 @@
     {
         Web = 0,
         Tcp = 1,
-        Udp = 2,
-        FileShar = 3
+        Udp = 2
     }
 }

@@ -20,8 +20,26 @@
                 LogType.Important => ConsoleColor.Cyan,
                 _ => throw new Exception()
             };
+            Console.ResetColor();
+            Console.Write(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "：");
             Console.ForegroundColor = color;
-            Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + ": " + message);
+            Console.Write(message);
+            Console.WriteLine();
+            Console.ResetColor();
+        }
+
+        public static void WriteLogo()
+        {
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine(
+                @"
+   ____ _____                       _ 
+  / ___|_   _|   _ _ __  _ __   ___| |
+ | |     | || | | | '_ \| '_ \ / _ \ |
+ | |___  | || |_| | | | | | | |  __/ |
+  \____| |_| \__,_|_| |_|_| |_|\___|_|
+"
+            );
             Console.ResetColor();
         }
     }

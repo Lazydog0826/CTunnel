@@ -2,18 +2,16 @@
 {
     public class AppConfig
     {
-        public string Token { get; set; } = string.Empty;
+        public int ServerPort { get; set; }
 
-        public bool IsOpenTLS { get; set; }
+        public int HttpPort { get; set; }
 
-        /// <summary>
-        /// PEM文件路径
-        /// </summary>
+        public int HttpsPort { get; set; }
+
         public string Certificate { get; set; } = string.Empty;
 
-        /// <summary>
-        /// KEY文件路径
-        /// </summary>
         public string CertificateKey { get; set; } = string.Empty;
+
+        public string Token { get; set; } = string.Empty;
     }
 }

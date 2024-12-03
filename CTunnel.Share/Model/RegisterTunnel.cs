@@ -2,7 +2,7 @@
 
 namespace CTunnel.Share.Model
 {
-    public class RegisterTunnelModel
+    public class RegisterTunnel
     {
         /// <summary>
         /// 授权码
@@ -23,10 +23,5 @@ namespace CTunnel.Share.Model
         /// 隧道类型
         /// </summary>
         public TunnelTypeEnum Type { get; set; }
-
-        /// <summary>
-        /// 文件共享路径
-        /// </summary>
-        public string FileSharingPath { get; set; } = string.Empty;
     }
 }

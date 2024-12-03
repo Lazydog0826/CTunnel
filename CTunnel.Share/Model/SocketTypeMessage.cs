@@ -2,7 +2,7 @@
 
 namespace CTunnel.Share.Model
 {
-    public class WebSocketMessageModel
+    public class SocketTypeMessage
     {
         /// <summary>
         /// 消息类型

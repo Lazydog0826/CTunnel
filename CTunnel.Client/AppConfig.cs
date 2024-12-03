@@ -1,13 +1,23 @@
 ﻿using CTunnel.Share.Enums;
 
-namespace CTunnel.Client.Request
+namespace CTunnel.Client
 {
-    public class CreateTunnelRequest
+    public class AppConfig
     {
         /// <summary>
-        /// 服务器主机
+        /// 服务器IP
         /// </summary>
         public string ServerHost { get; set; } = string.Empty;
+
+        /// <summary>
+        /// 服务器端口
+        /// </summary>
+        public int ServerPort { get; set; }
+
+        /// <summary>
+        /// Token
+        /// </summary>
+        public string Token { get; set; } = string.Empty;
 
         /// <summary>
         /// 域名
@@ -15,19 +25,14 @@ namespace CTunnel.Client.Request
         public string DomainName { get; set; } = string.Empty;
 
         /// <summary>
-        /// 服务端监听端口
+        /// 端口
         /// </summary>
-        public int ListenProt { get; set; }
+        public int Port { get; set; }
 
         /// <summary>
-        /// 隧道类型
+        /// 类型
         /// </summary>
         public TunnelTypeEnum Type { get; set; }
-
-        /// <summary>
-        /// 令牌
-        /// </summary>
-        public string Token { get; set; } = string.Empty;
 
         /// <summary>
         /// 目标IP
@@ -38,10 +43,5 @@ namespace CTunnel.Client.Request
         /// 目标端口
         /// </summary>
         public int TargetPort { get; set; }
-
-        /// <summary>
-        /// 文件共享路径
-        /// </summary>
-        public string FileSharingPath { get; set; } = string.Empty;
     }
 }

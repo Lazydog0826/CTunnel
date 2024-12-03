@@ -10,11 +10,6 @@
         /// <summary>
         /// 新请求
         /// </summary>
-        NewRequest = 2,
-
-        /// <summary>
-        /// 心跳检查
-        /// </summary>
-        PulseCheck = 3
+        NewRequest = 2
     }
 }

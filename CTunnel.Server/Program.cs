@@ -1,41 +1,104 @@
+锘縰sing System.CommandLine;
+using System.CommandLine.Builder;
+using System.CommandLine.Parsing;
+using System.Net.Sockets;
 using CTunnel.Server;
-using CTunnel.Server.TunnelHandle;
-using CTunnel.Server.WebSocketMessageHandle;
+using CTunnel.Server.ServerSocketHandle;
+using CTunnel.Server.SocketHandle;
+using CTunnel.Server.TunnelTypeHandle;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
-using Microsoft.AspNetCore.WebSockets;
+using CTunnel.Share.Expand;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
-var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddWebSockets(opt => { });
-builder.Services.AddSingleton<TunnelContext>();
-builder.Services.AddSingleton<WebRequestHandle>();
-builder.Services.AddHostedService<WebSocketListenHostService>();
+var rootCommand = new RootCommand();
+var configOption = new Option<string>("-c", "閰嶇疆鏂囦欢");
+rootCommand.AddOption(configOption);
 
-#region 注入IWebSocketMessageHandle实现
+rootCommand.SetHandler(
+    async configPath =>
+    {
+        Log.WriteLogo();
+        await ServiceContainer.RegisterServiceAsync(async services =>
+        {
+            var configuration = new ConfigurationBuilder().AddJsonFile(configPath).Build();
+            var config = configuration.GetConfig<AppConfig>();
+            services.AddSingleton(config);
+            services.AddSingleton<TunnelContext>();
 
-builder.Services.AddKeyedSingleton<IWebSocketMessageHandle, WebSocketMessageHandle_RegisterTunnel>(
-    nameof(WebSocketMessageTypeEnum.RegisterTunnel)
+            #region ISocketHandle
+
+            services.AddKeyedSingleton<ISocketHandle, SocketHandle_Server>("Server");
+            services.AddKeyedSingleton<ISocketHandle, SocketHandle_Http>("Http");
+            services.AddKeyedSingleton<ISocketHandle, SocketHandle_Https>("Https");
+
+            #endregion ISocketHandle
+
+            #region IServerSocketHandle
+
+            services.AddKeyedSingleton<IServerSocketHandle, ServerSocketHandle_NewRequest>(
+                nameof(WebSocketMessageTypeEnum.NewRequest)
+            );
+            services.AddKeyedSingleton<IServerSocketHandle, ServerSocketHandle_RegisterTunnel>(
+                nameof(WebSocketMessageTypeEnum.RegisterTunnel)
+            );
+
+            #endregion IServerSocketHandle
+
+            #region ITunnelTypeHandle
+
+            services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_Web>(
+                nameof(TunnelTypeEnum.Web)
+            );
+            services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_Tcp>(
+                nameof(TunnelTypeEnum.Tcp)
+            );
+            services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_Udp>(
+                nameof(TunnelTypeEnum.Udp)
+            );
+
+            #endregion ITunnelTypeHandle
+
+            services.AddSingleton(_ =>
+                CertificateExtend.LoadPem(config.Certificate, config.CertificateKey)
+            );
+            await Task.CompletedTask;
+        });
+        var config = ServiceContainer.GetService<AppConfig>();
+        SocketListen.CreateSocketListen(
+            new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp),
+            config.ServerPort,
+            ServiceContainer.GetService<ISocketHandle>("Server")
+        );
+        SocketListen.CreateSocketListen(
+            new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp),
+            config.HttpPort,
+            ServiceContainer.GetService<ISocketHandle>("Http")
+        );
+        SocketListen.CreateSocketListen(
+            new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp),
+            config.HttpsPort,
+            ServiceContainer.GetService<ISocketHandle>("Https")
+        );
+        await Task.Delay(Timeout.InfiniteTimeSpan);
+    },
+    configOption
 );
-builder.Services.AddKeyedSingleton<IWebSocketMessageHandle, WebSocketMessageHandle_PulseCheck>(
-    nameof(WebSocketMessageTypeEnum.PulseCheck)
+var commandLineBuilder = new CommandLineBuilder(rootCommand);
+commandLineBuilder.AddMiddleware(
+    async (context, next) =>
+    {
+        try
+        {
+            await next(context);
+        }
+        catch (Exception ex)
+        {
+            Log.Write(ex.Message, LogType.Error);
+        }
+    }
 );
-builder.Services.AddKeyedSingleton<IWebSocketMessageHandle, WebSocketMessageHandle_NewRequest>(
-    nameof(WebSocketMessageTypeEnum.NewRequest)
-);
-
-#endregion 注入IWebSocketMessageHandle实现
-
-#region 注入ITunnelHandle实现
-
-builder.Services.AddKeyedSingleton<ITunnelHandle, TunnelHandle_Web>(TunnelTypeEnum.Web.ToString());
-
-#endregion 注入ITunnelHandle实现
-
-builder.Services.AddControllers();
-var app = builder.Build();
-HostApp.ServiceProvider = app.Services;
-HostApp.Configuration = app.Configuration;
-app.UseWebSockets();
-app.UseMiddleware<ListenWebSocketMiddleware>();
-app.MapControllers();
-app.Run();
+commandLineBuilder.UseDefaults();
+var parser = commandLineBuilder.Build();
+return await parser.InvokeAsync(args);

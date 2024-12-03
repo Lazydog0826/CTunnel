@@ -1,13 +1,8 @@
-﻿{
-  "$schema": "http://json.schemastore.org/launchsettings.json",
+{
   "profiles": {
-    "http": {
+    "CTunnel.Client": {
       "commandName": "Project",
-      "dotnetRunMessages": true,
-      "applicationUrl": "http://localhost:5200",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+      "commandLineArgs": "--server 127.0.0.1:8080 --token TOKEN123 --domain 127.0.0.1 --type Web --target 127.0.0.1:5500"
     }
   }
 }

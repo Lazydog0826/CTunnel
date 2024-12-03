@@ -5,14 +5,18 @@ namespace CTunnel.Share.Expand
 {
     public static class BytesExpand
     {
-        public static T ConvertModel<T>(this Memory<byte> memory, int count)
+        public static T ConvertModel<T>(this Span<byte> bytes)
         {
-            return memory[..count].ToArray().ConvertModel<T>();
-        }
-
-        public static T ConvertModel<T>(this byte[] bytes)
-        {
-            return JsonConvert.DeserializeObject<T>(Encoding.UTF8.GetString(bytes))!;
+            var json = Encoding.UTF8.GetString(bytes);
+            try
+            {
+                return JsonConvert.DeserializeObject<T>(json)!;
+            }
+            catch
+            {
+                Log.Write($"消息读取失败 {json}");
+                throw;
+            }
         }
     }
 }
