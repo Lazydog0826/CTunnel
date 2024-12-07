@@ -90,7 +90,6 @@ namespace CTunnel.Share.Expand
                 catch (AuthenticationException)
                 {
                     await socket.TryCloseAsync();
-                    Log.Write("SSL身份验证失败", LogType.Error, "AuthenticateAsServerAsync");
                     throw;
                 }
 

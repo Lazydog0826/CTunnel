@@ -14,6 +14,7 @@ namespace CTunnel.Server.SocketHandle
             bool isHttps
         )
         {
+            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
             var socketStream = await socket.GetStreamAsync(isHttps, true, string.Empty);
 
             await BytesExpand.UseBufferAsync(
@@ -38,18 +39,10 @@ namespace CTunnel.Server.SocketHandle
                         await socketStream.ReturnTemplateHtmlAsync(message);
                         return;
                     }
-                    tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
-
-                    await tunnel.WebSocket.ForwardAsync(
-                        MessageTypeEnum.Forward,
-                        requestItem.RequestId,
-                        buffer,
-                        0,
-                        count,
-                        tunnel.Slim
-                    );
-                    while ((count = await socketStream.ReadAsync(buffer)) != 0)
+                    try
                     {
+                        tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
+
                         await tunnel.WebSocket.ForwardAsync(
                             MessageTypeEnum.Forward,
                             requestItem.RequestId,
@@ -58,6 +51,21 @@ namespace CTunnel.Server.SocketHandle
                             count,
                             tunnel.Slim
                         );
+                        while ((count = await socketStream.ReadAsync(buffer)) != 0)
+                        {
+                            await tunnel.WebSocket.ForwardAsync(
+                                MessageTypeEnum.Forward,
+                                requestItem.RequestId,
+                                buffer,
+                                0,
+                                count,
+                                tunnel.Slim
+                            );
+                        }
+                    }
+                    finally
+                    {
+                        await requestItem.CloseAsync(tunnel.ConcurrentDictionary);
                     }
                 }
             );
