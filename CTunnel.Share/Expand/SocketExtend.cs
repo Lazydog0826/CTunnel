@@ -111,7 +111,7 @@ namespace CTunnel.Share.Expand
             CancellationToken cancellationToken
         )
         {
-            using var ms = new MemoryStream();
+            using var ms = GlobalStaticConfig.MSManager.GetStream();
             while (true)
             {
                 var buffer = ArrayPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
@@ -187,7 +187,7 @@ namespace CTunnel.Share.Expand
             await slim.WaitAsync();
             try
             {
-                using var ms = new MemoryStream();
+                using var ms = GlobalStaticConfig.MSManager.GetStream();
                 ms.Write([(byte)messageType]);
                 ms.Write(Encoding.UTF8.GetBytes(requestId));
                 ms.Write(bytes, offset, count);

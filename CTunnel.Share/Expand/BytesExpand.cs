@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Buffers;
+using System.Text;
 using Newtonsoft.Json;
 
 namespace CTunnel.Share.Expand
@@ -22,6 +23,25 @@ namespace CTunnel.Share.Expand
             {
                 Log.Write(json, LogType.Error, "ConvertModel");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Buffer扩展
+        /// </summary>
+        /// <param name="size"></param>
+        /// <param name="func"></param>
+        /// <returns></returns>
+        public static async Task UseBufferAsync(int size, Func<byte[], Task> func)
+        {
+            var buffer = ArrayPool<byte>.Shared.Rent(size);
+            try
+            {
+                await func(buffer);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
             }
         }
     }

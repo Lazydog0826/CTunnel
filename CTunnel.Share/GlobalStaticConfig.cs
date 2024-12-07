@@ -1,4 +1,6 @@
-﻿namespace CTunnel.Share
+﻿using Microsoft.IO;
+
+namespace CTunnel.Share
 {
     /// <summary>
     /// 静态配置
@@ -14,5 +16,10 @@
         /// 流读取缓冲限制
         /// </summary>
         public static readonly int BufferSize = 81920;
+
+        /// <summary>
+        /// MemoryStream对象提供池化
+        /// </summary>
+        public static readonly RecyclableMemoryStreamManager MSManager = new();
     }
 }
