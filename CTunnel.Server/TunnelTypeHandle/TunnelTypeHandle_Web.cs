@@ -41,7 +41,7 @@ namespace CTunnel.Server.TunnelTypeHandle
                                         async buffer2 =>
                                         {
                                             ms.Seek(0, SeekOrigin.Begin);
-                                            await ms.ReadAsync(buffer2);
+                                            var buffer2ReadCount = await ms.ReadAsync(buffer2);
                                             await ms.DisposeAsync();
                                             ms = GlobalStaticConfig.MSManager.GetStream();
 
@@ -59,7 +59,7 @@ namespace CTunnel.Server.TunnelTypeHandle
                                                 if (ri != null)
                                                 {
                                                     await ri.TargetSocketStream.WriteAsync(
-                                                        buffer2.AsMemory(37, buffer2.Length - 37)
+                                                        buffer2.AsMemory(37, buffer2ReadCount - 37)
                                                     );
                                                 }
                                                 else

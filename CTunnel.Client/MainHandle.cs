@@ -68,29 +68,30 @@ namespace CTunnel.Client
                                                 async () =>
                                                 {
                                                     ms.Seek(0, SeekOrigin.Begin);
-                                                    await ms.ReadAsync(temBuffer);
+                                                    var readCount = await ms.ReadAsync(temBuffer);
                                                     await ms.DisposeAsync();
                                                     ms = GlobalStaticConfig.MSManager.GetStream();
-                                                    return temBuffer;
+                                                    return (temBuffer, readCount);
                                                 },
-                                                async temBuffer2 =>
+                                                async obj =>
                                                 {
                                                     if (
                                                         Enum.IsDefined(
                                                             typeof(MessageTypeEnum),
-                                                            temBuffer2.First()
+                                                            obj.temBuffer.First()
                                                         )
                                                     )
                                                     {
-                                                        var type = (MessageTypeEnum)temBuffer2[0];
+                                                        var type = (MessageTypeEnum)
+                                                            obj.temBuffer[0];
                                                         await ServiceContainer
                                                             .GetService<IMessageHandle>(
                                                                 type.ToString()
                                                             )
                                                             .HandleAsync(
                                                                 masterSocket,
-                                                                temBuffer2,
-                                                                temBuffer2.Length,
+                                                                obj.temBuffer,
+                                                                obj.readCount,
                                                                 appConfig,
                                                                 ConcurrentDictionary,
                                                                 slim
@@ -102,9 +103,9 @@ namespace CTunnel.Client
                                                     }
                                                 },
                                                 null,
-                                                async temBuffer2 =>
+                                                async obj =>
                                                 {
-                                                    ArrayPool<byte>.Shared.Return(temBuffer2);
+                                                    ArrayPool<byte>.Shared.Return(obj.temBuffer);
                                                     await Task.CompletedTask;
                                                 }
                                             );

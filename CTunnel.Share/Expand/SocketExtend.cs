@@ -202,7 +202,7 @@ namespace CTunnel.Share.Expand
                         ms.Seek(0, SeekOrigin.Begin);
                         var readCount = await ms.ReadAsync(new Memory<byte>(buffer));
                         await webSocket.SendAsync(
-                            buffer,
+                            buffer.AsMemory(0, readCount),
                             WebSocketMessageType.Binary,
                             true,
                             CancellationToken.None
