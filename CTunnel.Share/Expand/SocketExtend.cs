@@ -1,5 +1,4 @@
-﻿using System.Buffers;
-using System.Net.Security;
+﻿using System.Net.Security;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Security.Authentication;
@@ -112,26 +111,30 @@ namespace CTunnel.Share.Expand
         )
         {
             using var ms = GlobalStaticConfig.MSManager.GetStream();
-            while (true)
-            {
-                var buffer = ArrayPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-                try
+            T t = default!;
+            await BytesExpand.UseBufferAsync(
+                GlobalStaticConfig.BufferSize,
+                async buffer =>
                 {
-                    var receiveRes = await webSocket.ReceiveAsync(
-                        new Memory<byte>(buffer),
-                        cancellationToken
-                    );
-                    await ms.WriteAsync(buffer.AsMemory(0, receiveRes.Count), cancellationToken);
-                    if (receiveRes.EndOfMessage)
+                    while (true)
                     {
-                        return ms.ToArray().ConvertModel<T>();
+                        var receiveRes = await webSocket.ReceiveAsync(
+                            new Memory<byte>(buffer),
+                            cancellationToken
+                        );
+                        await ms.WriteAsync(
+                            buffer.AsMemory(0, receiveRes.Count),
+                            cancellationToken
+                        );
+                        if (receiveRes.EndOfMessage)
+                        {
+                            ms.Seek(0, SeekOrigin.Begin);
+                            t = ms.GetMemory().ConvertModel<T>();
+                        }
                     }
                 }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(buffer);
-                }
-            }
+            );
+            return t;
         }
 
         /// <summary>
@@ -187,16 +190,23 @@ namespace CTunnel.Share.Expand
             await slim.WaitAsync();
             try
             {
-                using var ms = GlobalStaticConfig.MSManager.GetStream();
-                ms.Write([(byte)messageType]);
-                ms.Write(Encoding.UTF8.GetBytes(requestId));
-                ms.Write(bytes, offset, count);
-                ms.Seek(0, SeekOrigin.Begin);
-                await webSocket.SendAsync(
-                    ms.ToArray(),
-                    WebSocketMessageType.Binary,
-                    true,
-                    CancellationToken.None
+                await BytesExpand.UseBufferAsync(
+                    count + 37,
+                    async buffer =>
+                    {
+                        using var ms = GlobalStaticConfig.MSManager.GetStream();
+                        ms.Write([(byte)messageType]);
+                        ms.Write(Encoding.UTF8.GetBytes(requestId));
+                        ms.Write(bytes, offset, count);
+                        ms.Seek(0, SeekOrigin.Begin);
+                        var readCount = await ms.ReadAsync(new Memory<byte>(buffer));
+                        await webSocket.SendAsync(
+                            buffer,
+                            WebSocketMessageType.Binary,
+                            true,
+                            CancellationToken.None
+                        );
+                    }
                 );
             }
             finally
