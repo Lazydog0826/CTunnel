@@ -1,7 +1,6 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
-using System.Security.Cryptography.X509Certificates;
 using CTunnel.Client;
 using CTunnel.Client.MessageHandle;
 using CTunnel.Share;
@@ -10,17 +9,17 @@ using Microsoft.Extensions.DependencyInjection;
 
 var rootCommand = new RootCommand();
 
-var serverOption = new Option<string>("--server", "服务端IP加端口");
+var serverOption = new Option<string>("--server", "服务端");
 rootCommand.AddOption(serverOption);
-var tokenOption = new Option<string>("--token", "Token令牌");
+var tokenOption = new Option<string>("--token", "Token");
 rootCommand.AddOption(tokenOption);
-var domainNameOption = new Option<string>("--domain", "域名，Web服务需要域名");
+var domainNameOption = new Option<string>("--domain", "域名");
 rootCommand.AddOption(domainNameOption);
-var listenPortOption = new Option<int>("--port", "端口，Web服务不需要");
+var listenPortOption = new Option<int>("--port", "端口，如果是Web服务则不需要端口");
 rootCommand.AddOption(listenPortOption);
 var typeOption = new Option<string>("--type", "隧道类型，可选值：Web，Tcp，Udp");
 rootCommand.AddOption(typeOption);
-var targetOption = new Option<string>("--target", "转发目标IP加端口");
+var targetOption = new Option<string>("--target", "转发的目标");
 rootCommand.AddOption(targetOption);
 
 rootCommand.SetHandler(
@@ -29,14 +28,13 @@ rootCommand.SetHandler(
         Log.WriteLogo();
         await ServiceContainer.RegisterServiceAsync(async services =>
         {
-            await Task.CompletedTask;
-            services.AddSingleton<X509Certificate2>();
             services.AddKeyedSingleton<IMessageHandle, MessageHandle_Forward>(
                 nameof(MessageTypeEnum.Forward)
             );
             services.AddKeyedSingleton<IMessageHandle, MessageHandle_CloseForward>(
                 nameof(MessageTypeEnum.CloseForward)
             );
+            await Task.CompletedTask;
         });
         var config = new AppConfig()
         {

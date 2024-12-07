@@ -32,7 +32,11 @@ namespace CTunnel.Share.Expand
         /// <param name="size"></param>
         /// <param name="func"></param>
         /// <returns></returns>
-        public static async Task UseBufferAsync(int size, Func<byte[], Task> func)
+        public static async Task UseBufferAsync(
+            int size,
+            Func<byte[], Task> func,
+            bool autoReturn = true
+        )
         {
             var buffer = ArrayPool<byte>.Shared.Rent(size);
             try
@@ -41,7 +45,10 @@ namespace CTunnel.Share.Expand
             }
             finally
             {
-                ArrayPool<byte>.Shared.Return(buffer);
+                if (autoReturn)
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
             }
         }
     }

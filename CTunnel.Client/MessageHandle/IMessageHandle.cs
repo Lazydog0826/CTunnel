@@ -11,7 +11,8 @@ namespace CTunnel.Client.MessageHandle
             byte[] bytes,
             int bytesCount,
             AppConfig appConfig,
-            ConcurrentDictionary<string, RequestItem> pairs
+            ConcurrentDictionary<string, RequestItem> pairs,
+            SemaphoreSlim slim
         );
     }
 }

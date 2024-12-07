@@ -10,7 +10,7 @@ namespace CTunnel.Client
         public string Id { get; set; } = string.Empty;
 
         /// <summary>
-        /// 服务器IP
+        /// 服务器
         /// </summary>
         public UriBuilder Server { get; set; } = null!;
 

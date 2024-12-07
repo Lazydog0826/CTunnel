@@ -10,8 +10,8 @@
         /// <param name="name"></param>
         public static void NewTask(
             Func<Task> func,
-            Func<Exception, Task>? action = null,
-            string name = ""
+            Func<Exception, Task>? catchFunc = null,
+            Func<Task>? finallyFunc = null
         )
         {
             _ = Task.Run(async () =>
@@ -22,10 +22,50 @@
                     }
                     catch (Exception ex)
                     {
-                        Log.Write(ex.Message, LogType.Error, name);
-                        if (action != null)
+                        Log.Write(ex.Message, LogType.Error);
+                        if (catchFunc != null)
                         {
-                            await action.Invoke(ex);
+                            await catchFunc.Invoke(ex);
+                        }
+                    }
+                    finally
+                    {
+                        if (finallyFunc != null)
+                        {
+                            await finallyFunc();
+                        }
+                    }
+                })
+                .ConfigureAwait(false);
+        }
+
+        public static async Task NewTaskAsBeginFunc<T>(
+            Func<Task<T>> beginFunc,
+            Func<T, Task> func,
+            Func<Exception, Task>? catchFunc = null,
+            Func<T, Task>? finallyFunc = null
+        )
+        {
+            var obj = await beginFunc();
+            _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await func.Invoke(obj);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Write(ex.Message, LogType.Error);
+                        if (catchFunc != null)
+                        {
+                            await catchFunc.Invoke(ex);
+                        }
+                    }
+                    finally
+                    {
+                        if (finallyFunc != null)
+                        {
+                            await finallyFunc(obj);
                         }
                     }
                 })

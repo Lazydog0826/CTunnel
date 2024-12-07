@@ -1,5 +1,4 @@
-﻿using System.Buffers;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
@@ -18,7 +17,8 @@ namespace CTunnel.Client.MessageHandle
             byte[] bytes,
             int bytesCount,
             AppConfig appConfig,
-            ConcurrentDictionary<string, RequestItem> pairs
+            ConcurrentDictionary<string, RequestItem> pairs,
+            SemaphoreSlim slim
         )
         {
             var requestId = Encoding.UTF8.GetString(bytes.AsSpan(1, 36));
@@ -43,32 +43,34 @@ namespace CTunnel.Client.MessageHandle
                 ri.TargetSocketStream = await ri.TargetSocket.GetStreamAsync(
                     TLSExtend.IsNeedTLS(appConfig.Target),
                     false,
-                    string.Empty
+                    appConfig.Target.Host
                 );
                 pairs.TryAdd(requestId, ri);
                 await ri.TargetSocketStream.WriteAsync(bytes.AsMemory(37, bytesCount - 37));
-                var buff = ArrayPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-                int count;
-                try
-                {
-                    while (
-                        (count = await ri.TargetSocketStream.ReadAsync(new Memory<byte>(buff))) != 0
-                    )
+                await BytesExpand.UseBufferAsync(
+                    GlobalStaticConfig.BufferSize,
+                    async buffer =>
                     {
-                        await webSocket.ForwardAsync(
-                            MessageTypeEnum.Forward,
-                            requestId,
-                            buff,
-                            0,
-                            count
-                        );
+                        int count;
+                        while (
+                            (
+                                count = await ri.TargetSocketStream.ReadAsync(
+                                    new Memory<byte>(buffer)
+                                )
+                            ) != 0
+                        )
+                        {
+                            await webSocket.ForwardAsync(
+                                MessageTypeEnum.Forward,
+                                requestId,
+                                buffer,
+                                0,
+                                count,
+                                slim
+                            );
+                        }
                     }
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(buff);
-                    await ri.CloseAsync(pairs);
-                }
+                );
             }
         }
     }
