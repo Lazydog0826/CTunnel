@@ -70,7 +70,6 @@ namespace CTunnel.Share.Expand
             var stream = new NetworkStream(socket);
             if (useTLS)
             {
-                var x509 = ServiceContainer.GetService<X509Certificate2>();
                 // 使用安全套接字层（SSL）安全协议，忽略证书验证
                 var ssl = new SslStream(
                     stream,
@@ -81,6 +80,7 @@ namespace CTunnel.Share.Expand
                 {
                     if (isServer)
                     {
+                        var x509 = ServiceContainer.GetService<X509Certificate2>();
                         await ssl.AuthenticateAsServerAsync(x509, false, SslProtocols.Tls13, true);
                     }
                     else
