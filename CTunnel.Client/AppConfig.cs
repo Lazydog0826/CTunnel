@@ -5,14 +5,14 @@ namespace CTunnel.Client
     public class AppConfig
     {
         /// <summary>
-        /// 服务器IP
+        /// 唯一ID
         /// </summary>
-        public string ServerHost { get; set; } = string.Empty;
+        public string Id { get; set; } = string.Empty;
 
         /// <summary>
-        /// 服务器端口
+        /// 服务器IP
         /// </summary>
-        public int ServerPort { get; set; }
+        public UriBuilder Server { get; set; } = null!;
 
         /// <summary>
         /// Token
@@ -37,11 +37,6 @@ namespace CTunnel.Client
         /// <summary>
         /// 目标IP
         /// </summary>
-        public string TargetIp { get; set; } = string.Empty;
-
-        /// <summary>
-        /// 目标端口
-        /// </summary>
-        public int TargetPort { get; set; }
+        public UriBuilder Target { get; set; } = null!;
     }
 }

@@ -1,18 +1,20 @@
 ﻿using System.Buffers;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using CTunnel.Share.Enums;
-using CTunnel.Share.Model;
 using Newtonsoft.Json;
 
 namespace CTunnel.Share.Expand
 {
     public static class SocketExtend
     {
+        private static readonly SemaphoreSlim slim = new(1);
+
         /// <summary>
         /// 尝试关闭
         /// </summary>
@@ -26,6 +28,27 @@ namespace CTunnel.Share.Expand
                 {
                     socket.Close();
                     await Task.CompletedTask;
+                }
+                catch { }
+            }
+        }
+
+        /// <summary>
+        /// 尝试关闭
+        /// </summary>
+        /// <param name="webSocket"></param>
+        /// <returns></returns>
+        public static async Task TryCloseAsync(this WebSocket? webSocket)
+        {
+            if (webSocket != null)
+            {
+                try
+                {
+                    await webSocket.CloseAsync(
+                        WebSocketCloseStatus.Empty,
+                        string.Empty,
+                        CancellationToken.None
+                    );
                 }
                 catch { }
             }
@@ -64,7 +87,6 @@ namespace CTunnel.Share.Expand
                     catch (AuthenticationException)
                     {
                         await socket.TryCloseAsync();
-                        Log.Write("SSL 握手失败", LogType.Error);
                         throw;
                     }
                 }
@@ -72,7 +94,6 @@ namespace CTunnel.Share.Expand
                 {
                     await ssl.AuthenticateAsClientAsync(targetHost);
                 }
-                Log.Write("证书握手成功", LogType.Success);
                 return ssl;
             }
             return s;
@@ -82,49 +103,22 @@ namespace CTunnel.Share.Expand
         /// 接收消息
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="stream"></param>
-        /// <param name="token"></param>
+        /// <param name="webSocket"></param>
         /// <returns></returns>
-        public static async Task<T> ReadMessageAsync<T>(this Stream stream, CancellationToken token)
-        {
-            var buffer = ArrayPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-            try
-            {
-                var count = await stream.ReadAsync(new Memory<byte>(buffer), token);
-                var obj = buffer.AsSpan(0, count).ConvertModel<T>();
-                return obj;
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
-        }
-
-        /// <summary>
-        /// 循环接收
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="stream"></param>
-        /// <param name="token"></param>
-        /// <returns></returns>
-        public static async Task LoopReadMessageAsync<T>(
-            this Stream stream,
-            Func<T, Task> func,
-            CancellationToken token
+        public static async Task<T> ReadMessageAsync<T>(
+            this WebSocket webSocket,
+            CancellationToken cancellationToken
         )
         {
             var buffer = ArrayPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
             try
             {
-                int count;
-                while ((count = await stream.ReadAsync(new Memory<byte>(buffer), token)) != 0)
-                {
-                    if (buffer[0] != 0x00)
-                    {
-                        var obj = buffer.AsSpan(0, count).ConvertModel<T>();
-                        _ = func.Invoke(obj);
-                    }
-                }
+                var count = await webSocket.ReceiveAsync(
+                    new Memory<byte>(buffer),
+                    cancellationToken
+                );
+                var obj = buffer.AsSpan(0, count.Count).ConvertModel<T>();
+                return obj;
             }
             finally
             {
@@ -135,99 +129,68 @@ namespace CTunnel.Share.Expand
         /// <summary>
         /// 发送消息
         /// </summary>
-        /// <param name="stream"></param>
+        /// <param name="webSocket"></param>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public static async Task SendMessageAsync(
-            this Stream stream,
-            object obj,
-            CancellationToken token
-        )
+        public static async Task SendMessageAsync(this WebSocket webSocket, object obj)
         {
-            var json = JsonConvert.SerializeObject(obj);
-            var bytes = Encoding.UTF8.GetBytes(json);
-            await stream.WriteAsync(bytes, token);
-        }
-
-        /// <summary>
-        /// 发送心跳包
-        /// </summary>
-        /// <param name="stream"></param>
-        /// <param name="token"></param>
-        /// <returns></returns>
-        public static async Task SendHeartbeatPacketAsync(
-            this Stream stream,
-            CancellationToken token
-        )
-        {
-            await stream.WriteAsync(new byte[] { 0x00 }, token);
+            await slim.WaitAsync();
+            try
+            {
+                await Task.CompletedTask;
+                var json = JsonConvert.SerializeObject(obj);
+                var bytes = Encoding.UTF8.GetBytes(json);
+                await webSocket.SendAsync(
+                    bytes,
+                    WebSocketMessageType.Binary,
+                    true,
+                    CancellationToken.None
+                );
+            }
+            finally
+            {
+                slim.Release();
+            }
         }
 
         /// <summary>
         /// 转发逻辑
         /// </summary>
-        /// <param name="stream"></param>
+        /// <param name="webSocket"></param>
+        /// <param name="messageType"></param>
+        /// <param name="requestId"></param>
+        /// <param name="bytes"></param>
+        /// <param name="offset"></param>
+        /// <param name="count"></param>
         /// <returns></returns>
         public static async Task ForwardAsync(
-            this Stream source,
-            Stream destination,
-            CancellationToken cancellationToken
+            this WebSocket webSocket,
+            MessageTypeEnum messageType,
+            string requestId,
+            byte[] bytes,
+            int offset,
+            int count
         )
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+            await slim.WaitAsync();
             try
             {
-                int bytesRead;
-                while (
-                    (
-                        bytesRead = await source
-                            .ReadAsync(new Memory<byte>(buffer), cancellationToken)
-                            .ConfigureAwait(false)
-                    ) != 0
-                )
-                {
-                    if (buffer[0] != 0x00)
-                    {
-                        await destination
-                            .WriteAsync(
-                                new ReadOnlyMemory<byte>(buffer, 0, bytesRead),
-                                cancellationToken
-                            )
-                            .ConfigureAwait(false);
-                    }
-                }
+                using var ms = new MemoryStream();
+                ms.Write([(byte)messageType]);
+                ms.Write(Encoding.UTF8.GetBytes(requestId));
+                ms.Write(bytes, offset, count);
+                ms.Seek(0, SeekOrigin.Begin);
+                await webSocket.SendAsync(
+                    ms.ToArray(),
+                    WebSocketMessageType.Binary,
+                    true,
+                    CancellationToken.None
+                );
             }
             finally
             {
-                ArrayPool<byte>.Shared.Return(buffer);
+                slim.Release();
             }
-        }
-
-        /// <summary>
-        /// 发送Socket操作结果
-        /// </summary>
-        /// <param name="stream"></param>
-        /// <param name="messageType"></param>
-        /// <param name="success"></param>
-        /// <param name="message"></param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        public static async Task SendSocketResultAsync(
-            this Stream stream,
-            WebSocketMessageTypeEnum messageType,
-            bool success,
-            string message,
-            CancellationToken cancellationToken
-        )
-        {
-            var typeMessage = new SocketTypeMessage
-            {
-                MessageType = messageType,
-                JsonData = JsonConvert.SerializeObject(
-                    new SocketResult { Success = success, Message = message }
-                )
-            };
-            await stream.SendMessageAsync(typeMessage, cancellationToken);
         }
 
         /// <summary>
@@ -238,11 +201,10 @@ namespace CTunnel.Share.Expand
         /// <returns></returns>
         public static async Task<(string, int)> ParseWebRequestAsync(
             this Stream stream,
-            byte[] buffer,
-            CancellationToken cancellationToken
+            byte[] buffer
         )
         {
-            var count = await stream.ReadAsync(new Memory<byte>(buffer), cancellationToken);
+            var count = await stream.ReadAsync(new Memory<byte>(buffer));
             var message = Encoding.UTF8.GetString(buffer[..count]);
             var reg = new Regex("Host:\\s(.+)", RegexOptions.Multiline);
             var match = reg.Match(message);
@@ -252,7 +214,6 @@ namespace CTunnel.Share.Expand
             }
             var uriBuilder = new UriBuilder(match.Value.Replace("Host: ", string.Empty));
             var host = uriBuilder.Host;
-            Log.Write($"外部请求 {host}", LogType.Important);
             return (host, count);
         }
     }

@@ -3,6 +3,7 @@ using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
 using System.Security.Cryptography.X509Certificates;
 using CTunnel.Client;
+using CTunnel.Client.MessageHandle;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,20 +31,22 @@ rootCommand.SetHandler(
         {
             await Task.CompletedTask;
             services.AddSingleton<X509Certificate2>();
+            services.AddKeyedSingleton<IMessageHandle, MessageHandle_Forward>(
+                nameof(MessageTypeEnum.Forward)
+            );
+            services.AddKeyedSingleton<IMessageHandle, MessageHandle_CloseForward>(
+                nameof(MessageTypeEnum.CloseForward)
+            );
         });
         var config = new AppConfig()
         {
             Token = token,
             DomainName = domain,
-            Port = port
+            Port = port,
+            Server = new UriBuilder(server),
+            Target = new UriBuilder(target),
+            Type = (TunnelTypeEnum)Enum.Parse(typeof(TunnelTypeEnum), type)
         };
-        var serverArr = server.Split(":");
-        config.ServerHost = serverArr[0];
-        config.ServerPort = Convert.ToInt32(serverArr[1]);
-        var targetArr = target.Split(":");
-        config.TargetIp = targetArr[0];
-        config.TargetPort = Convert.ToInt32(targetArr[1]);
-        config.Type = (TunnelTypeEnum)Enum.Parse(typeof(TunnelTypeEnum), type);
         await MainHandle.HandleAsync(config);
     },
     serverOption,

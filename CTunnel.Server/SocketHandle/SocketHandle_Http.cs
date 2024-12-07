@@ -7,7 +7,6 @@ namespace CTunnel.Server.SocketHandle
     {
         public async Task HandleAsync(Socket socket)
         {
-            Log.Write("Http 请求", LogType.Important);
             await SocketHandle_Web.HandleAsync(socket, _tunnelContext, false);
         }
     }

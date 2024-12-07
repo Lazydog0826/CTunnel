@@ -2,6 +2,8 @@
 {
     public class AppConfig
     {
+        public string ServerIp { get; set; } = string.Empty;
+
         public int ServerPort { get; set; }
 
         public int HttpPort { get; set; }

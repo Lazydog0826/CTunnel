@@ -3,7 +3,6 @@ using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
 using System.Net.Sockets;
 using CTunnel.Server;
-using CTunnel.Server.ServerSocketHandle;
 using CTunnel.Server.SocketHandle;
 using CTunnel.Server.TunnelTypeHandle;
 using CTunnel.Share;
@@ -26,36 +25,19 @@ rootCommand.SetHandler(
             var config = configuration.GetConfig<AppConfig>();
             services.AddSingleton(config);
             services.AddSingleton<TunnelContext>();
+            services.AddSingleton<WebSocketHandle>();
 
             #region ISocketHandle
 
-            services.AddKeyedSingleton<ISocketHandle, SocketHandle_Server>("Server");
             services.AddKeyedSingleton<ISocketHandle, SocketHandle_Http>("Http");
             services.AddKeyedSingleton<ISocketHandle, SocketHandle_Https>("Https");
 
             #endregion ISocketHandle
 
-            #region IServerSocketHandle
-
-            services.AddKeyedSingleton<IServerSocketHandle, ServerSocketHandle_NewRequest>(
-                nameof(WebSocketMessageTypeEnum.NewRequest)
-            );
-            services.AddKeyedSingleton<IServerSocketHandle, ServerSocketHandle_RegisterTunnel>(
-                nameof(WebSocketMessageTypeEnum.RegisterTunnel)
-            );
-
-            #endregion IServerSocketHandle
-
             #region ITunnelTypeHandle
 
             services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_Web>(
                 nameof(TunnelTypeEnum.Web)
-            );
-            services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_Tcp>(
-                nameof(TunnelTypeEnum.Tcp)
-            );
-            services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_Udp>(
-                nameof(TunnelTypeEnum.Udp)
             );
 
             #endregion ITunnelTypeHandle
@@ -66,11 +48,7 @@ rootCommand.SetHandler(
             await Task.CompletedTask;
         });
         var config = ServiceContainer.GetService<AppConfig>();
-        SocketListen.CreateSocketListen(
-            new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp),
-            config.ServerPort,
-            ServiceContainer.GetService<ISocketHandle>("Server")
-        );
+        SocketListen.CreateWebSocketListen(config);
         SocketListen.CreateSocketListen(
             new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp),
             config.HttpPort,

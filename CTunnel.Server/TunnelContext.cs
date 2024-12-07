@@ -7,35 +7,24 @@ namespace CTunnel.Server
     {
         private readonly ConcurrentDictionary<string, TunnelModel> _tunnels = [];
 
-        public bool IsRepeat(string key)
+        public TunnelModel? GetTunnel(string host)
         {
-            return _tunnels.Any(x => x.Key == key);
-        }
-
-        public TunnelModel? GetTunnel(string domainName)
-        {
-            if (_tunnels.TryGetValue(domainName, out var tunnel))
+            if (_tunnels.TryGetValue(host, out var t))
             {
-                return tunnel;
+                return t;
             }
             return null;
         }
 
-        public async Task<bool> AddTunnelAsync(TunnelModel tunnelModel)
+        public bool AddTunnel(TunnelModel tunnelModel)
         {
-            if (IsRepeat(tunnelModel.DomainName))
-            {
-                return false;
-            }
-            _tunnels.TryAdd(tunnelModel.DomainName, tunnelModel);
-            await Task.CompletedTask;
-            return true;
+            return _tunnels.TryAdd(tunnelModel.DomainName, tunnelModel);
         }
 
         public async Task RemoveAsync(TunnelModel tunnelModel)
         {
             _tunnels.Remove(tunnelModel.DomainName, out var _);
-            await Task.CompletedTask;
+            await tunnelModel.CloseAllAsync();
         }
     }
 }
