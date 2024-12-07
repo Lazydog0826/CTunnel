@@ -20,22 +20,21 @@
         {
             var color = logType switch
             {
-                LogType.Default => ConsoleColor.White,
                 LogType.Success => ConsoleColor.Green,
                 LogType.Error => ConsoleColor.Red,
                 LogType.Important => ConsoleColor.Cyan,
-                _ => throw new Exception()
+                _ => ConsoleColor.White,
             };
             lock (obj)
             {
-                Console.ResetColor();
-                Console.Write(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                Console.Write("：");
-                Console.ForegroundColor = color;
+                Console.ForegroundColor = ConsoleColor.Gray;
+                Console.Write($"[ {DateTime.Now:yyyy-MM-dd HH:mm:ss} ] ");
                 if (!string.IsNullOrWhiteSpace(append))
                 {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.Write($"[ {append} ] ");
                 }
+                Console.ForegroundColor = color;
                 Console.WriteLine(message);
                 Console.ResetColor();
             }
