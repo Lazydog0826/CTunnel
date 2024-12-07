@@ -14,7 +14,7 @@ namespace CTunnel.Share.Expand
             }
             catch
             {
-                Log.Write($"消息读取失败 {json}");
+                Log.Write(json, LogType.Error, "ConvertModel Failure");
                 throw;
             }
         }
