@@ -2,7 +2,7 @@
   "profiles": {
     "CTunnel.Client": {
       "commandName": "Project",
-      "commandLineArgs": "--server ws://127.0.0.1:8080 --token TOKEN123 --domain 192.168.2.155 --type Web --target https://192.168.1.8:9900"
+      "commandLineArgs": "--server ws://127.0.0.1:8888 --token TOKEN_TEST --domain 127.0.0.1 --type Web --target http://192.168.1.101:5173"
     }
   }
 }

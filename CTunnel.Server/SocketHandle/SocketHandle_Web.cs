@@ -1,5 +1,4 @@
-﻿using System.Buffers;
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
@@ -16,51 +15,52 @@ namespace CTunnel.Server.SocketHandle
         )
         {
             var socketStream = await socket.GetStreamAsync(isHttps, true, string.Empty);
-            var buffer = ArrayPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-            string host;
-            int count;
 
-            var requestItem = new RequestItem()
-            {
-                RequestId = Guid.NewGuid().ToString(),
-                TargetSocket = socket,
-                TargetSocketStream = socketStream,
-            };
-
-            (host, count) = await socketStream.ParseWebRequestAsync(buffer);
-            var tunnel = tunnelContext.GetTunnel(host);
-            if (tunnel == null)
-            {
-                var message = "Tunnel does not exist or no connection is available ";
-                await socketStream.ReturnTemplateHtmlAsync(message);
-                return;
-            }
-            tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
-
-            try
-            {
-                await tunnel.WebSocket.ForwardAsync(
-                    MessageTypeEnum.Forward,
-                    requestItem.RequestId,
-                    buffer,
-                    0,
-                    count
-                );
-                while ((count = await socketStream.ReadAsync(buffer)) != 0)
+            await BytesExpand.UseBufferAsync(
+                GlobalStaticConfig.BufferSize,
+                async buffer =>
                 {
+                    string host;
+                    int count;
+
+                    var requestItem = new RequestItem()
+                    {
+                        RequestId = Guid.NewGuid().ToString(),
+                        TargetSocket = socket,
+                        TargetSocketStream = socketStream
+                    };
+
+                    (host, count) = await socketStream.ParseWebRequestAsync(buffer);
+                    var tunnel = tunnelContext.GetTunnel(host);
+                    if (tunnel == null)
+                    {
+                        var message = "Tunnel does not exist or no connection is available ";
+                        await socketStream.ReturnTemplateHtmlAsync(message);
+                        return;
+                    }
+                    tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
+
                     await tunnel.WebSocket.ForwardAsync(
                         MessageTypeEnum.Forward,
                         requestItem.RequestId,
                         buffer,
                         0,
-                        count
+                        count,
+                        tunnel.Slim
                     );
+                    while ((count = await socketStream.ReadAsync(buffer)) != 0)
+                    {
+                        await tunnel.WebSocket.ForwardAsync(
+                            MessageTypeEnum.Forward,
+                            requestItem.RequestId,
+                            buffer,
+                            0,
+                            count,
+                            tunnel.Slim
+                        );
+                    }
                 }
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
+            );
         }
     }
 }

@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using System.Net.Sockets;
-using System.Net.WebSockets;
 using CTunnel.Server.SocketHandle;
 using CTunnel.Share;
 using CTunnel.Share.Expand;
@@ -27,7 +26,6 @@ namespace CTunnel.Server
                     );
                 }
             });
-            Log.Write($"监听端口 {port}", LogType.Success);
         }
 
         public static void CreateWebSocketListen(AppConfig appConfig)
@@ -49,11 +47,7 @@ namespace CTunnel.Server
                             async () => await webSocketHandle.HandleAsync(webSocket),
                             async _ =>
                             {
-                                await webSocket.WebSocket.CloseAsync(
-                                    WebSocketCloseStatus.Empty,
-                                    string.Empty,
-                                    CancellationToken.None
-                                );
+                                await webSocket.WebSocket.TryCloseAsync();
                                 context.Response.Close();
                             }
                         );
@@ -65,7 +59,6 @@ namespace CTunnel.Server
                     }
                 }
             });
-            Log.Write($"开始监听 {appConfig.ServerIp}:{appConfig.ServerPort}", LogType.Success);
         }
     }
 }

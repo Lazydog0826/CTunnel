@@ -10,7 +10,7 @@ namespace CTunnel.Share
         /// <summary>
         /// 超时时间
         /// </summary>
-        public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);
+        public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(200);
 
         /// <summary>
         /// 流读取缓冲限制

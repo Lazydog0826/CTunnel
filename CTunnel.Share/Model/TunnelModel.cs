@@ -51,6 +51,7 @@ namespace CTunnel.Share.Model
         {
             await WebSocket.TryCloseAsync();
             await ListenSocket.TryCloseAsync();
+            Slim.Dispose();
 
             // 子链接全部断开
             foreach (var item in ConcurrentDictionary)

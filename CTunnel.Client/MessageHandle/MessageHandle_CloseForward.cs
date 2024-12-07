@@ -12,7 +12,8 @@ namespace CTunnel.Client.MessageHandle
             byte[] bytes,
             int bytesCount,
             AppConfig appConfig,
-            ConcurrentDictionary<string, RequestItem> pairs
+            ConcurrentDictionary<string, RequestItem> pairs,
+            SemaphoreSlim slim
         )
         {
             var requestId = Encoding.UTF8.GetString(bytes.AsSpan(1, 36));

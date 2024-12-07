@@ -130,6 +130,7 @@ namespace CTunnel.Share.Expand
                         {
                             ms.Seek(0, SeekOrigin.Begin);
                             t = ms.GetMemory().ConvertModel<T>();
+                            break;
                         }
                     }
                 }

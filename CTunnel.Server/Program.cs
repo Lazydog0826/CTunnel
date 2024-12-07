@@ -49,16 +49,19 @@ rootCommand.SetHandler(
         });
         var config = ServiceContainer.GetService<AppConfig>();
         SocketListen.CreateWebSocketListen(config);
+        Log.Write($"监听 ws://{config.ServerIp}:{config.ServerPort}/", LogType.Success);
         SocketListen.CreateSocketListen(
             new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp),
             config.HttpPort,
             ServiceContainer.GetService<ISocketHandle>("Http")
         );
+        Log.Write($"监听 {config.HttpPort} 端口做为HTTP服务", LogType.Success);
         SocketListen.CreateSocketListen(
             new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp),
             config.HttpsPort,
             ServiceContainer.GetService<ISocketHandle>("Https")
         );
+        Log.Write($"监听 {config.HttpsPort} 端口做为HTTPS服务", LogType.Success);
         await Task.Delay(Timeout.InfiniteTimeSpan);
     },
     configOption
