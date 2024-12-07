@@ -2,6 +2,9 @@
 
 namespace CTunnel.Share
 {
+    /// <summary>
+    /// 静态依赖注入容器
+    /// </summary>
     public static class ServiceContainer
     {
         private static readonly IServiceCollection Services = new ServiceCollection();

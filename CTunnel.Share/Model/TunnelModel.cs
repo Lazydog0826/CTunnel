@@ -39,10 +39,15 @@ namespace CTunnel.Share.Model
         public Socket ListenSocket { get; set; } = null!;
 
         /// <summary>
+        /// 信号量，阻止发送消息并发
+        /// </summary>
+        public SemaphoreSlim Slim { get; set; } = new(1);
+
+        /// <summary>
         /// 关闭所有相关内容
         /// </summary>
         /// <returns></returns>
-        public async Task CloseAllAsync()
+        public async Task CloseAsync()
         {
             await WebSocket.TryCloseAsync();
             await ListenSocket.TryCloseAsync();
@@ -50,7 +55,7 @@ namespace CTunnel.Share.Model
             // 子链接全部断开
             foreach (var item in ConcurrentDictionary)
             {
-                await item.Value.CloseAllAsync(ConcurrentDictionary);
+                await item.Value.CloseAsync(ConcurrentDictionary);
             }
         }
 
@@ -76,8 +81,7 @@ namespace CTunnel.Share.Model
         {
             if (ConcurrentDictionary.TryGetValue(requestId, out var ri))
             {
-                await ri.TargetSocket.TryCloseAsync();
-                ConcurrentDictionary.Remove(requestId, out var _);
+                await ri.CloseAsync(ConcurrentDictionary);
             }
         }
     }

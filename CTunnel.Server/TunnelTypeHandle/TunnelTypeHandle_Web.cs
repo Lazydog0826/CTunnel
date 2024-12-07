@@ -16,7 +16,7 @@ namespace CTunnel.Server.TunnelTypeHandle
                 if (_tunnelContext.AddTunnel(tunnel))
                 {
                     await tunnel.WebSocket.SendMessageAsync(
-                        new SocketResult { Success = true, Message = "成功" }
+                        new WebSocketResult { Success = true, Message = "成功" }
                     );
                     Log.Write($"注册隧道成功", LogType.Success, tunnel.DomainName);
                     var buffer = ArrayPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize + 37);
@@ -94,9 +94,9 @@ namespace CTunnel.Server.TunnelTypeHandle
             catch (Exception ex)
             {
                 await tunnel.WebSocket.SendMessageAsync(
-                    new SocketResult { Success = false, Message = ex.Message }
+                    new WebSocketResult { Success = false, Message = ex.Message }
                 );
-                await tunnel.CloseAllAsync();
+                await tunnel.CloseAsync();
                 Log.Write(ex.Message, LogType.Error);
             }
         }

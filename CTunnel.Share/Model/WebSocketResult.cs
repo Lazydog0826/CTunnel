@@ -1,6 +1,6 @@
 ﻿namespace CTunnel.Share.Model
 {
-    public class SocketResult
+    public class WebSocketResult
     {
         /// <summary>
         /// 是否成功

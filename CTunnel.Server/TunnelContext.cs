@@ -24,7 +24,7 @@ namespace CTunnel.Server
         public async Task RemoveAsync(TunnelModel tunnelModel)
         {
             _tunnels.Remove(tunnelModel.DomainName, out var _);
-            await tunnelModel.CloseAllAsync();
+            await tunnelModel.CloseAsync();
         }
     }
 }

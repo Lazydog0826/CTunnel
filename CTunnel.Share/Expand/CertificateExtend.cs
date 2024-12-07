@@ -4,6 +4,12 @@ namespace CTunnel.Share.Expand
 {
     public static class CertificateExtend
     {
+        /// <summary>
+        /// 读取PEM,KEY类型证书，生成随机密码，并转成Pfx格式
+        /// </summary>
+        /// <param name="pem"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         public static X509Certificate2 LoadPem(string pem, string key)
         {
             var password = Guid.NewGuid().ToString("N");

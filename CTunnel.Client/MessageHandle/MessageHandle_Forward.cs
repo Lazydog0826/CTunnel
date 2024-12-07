@@ -67,7 +67,7 @@ namespace CTunnel.Client.MessageHandle
                 finally
                 {
                     ArrayPool<byte>.Shared.Return(buff);
-                    await ri.CloseAllAsync(pairs);
+                    await ri.CloseAsync(pairs);
                 }
             }
         }

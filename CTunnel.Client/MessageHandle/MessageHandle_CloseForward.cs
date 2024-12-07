@@ -18,7 +18,7 @@ namespace CTunnel.Client.MessageHandle
             var requestId = Encoding.UTF8.GetString(bytes.AsSpan(1, 36));
             if (pairs.TryGetValue(requestId, out var ri))
             {
-                await ri.CloseAllAsync(pairs);
+                await ri.CloseAsync(pairs);
             }
         }
     }

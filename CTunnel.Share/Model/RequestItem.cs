@@ -12,7 +12,7 @@ namespace CTunnel.Share.Model
 
         public Stream TargetSocketStream { get; set; } = null!;
 
-        public async Task CloseAllAsync(ConcurrentDictionary<string, RequestItem> pairs)
+        public async Task CloseAsync(ConcurrentDictionary<string, RequestItem> pairs)
         {
             pairs.Remove(RequestId, out var _);
             await TargetSocket.TryCloseAsync();

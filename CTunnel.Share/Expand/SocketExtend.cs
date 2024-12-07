@@ -13,8 +13,6 @@ namespace CTunnel.Share.Expand
 {
     public static class SocketExtend
     {
-        private static readonly SemaphoreSlim slim = new(1);
-
         /// <summary>
         /// 尝试关闭
         /// </summary>
@@ -69,34 +67,37 @@ namespace CTunnel.Share.Expand
             string targetHost
         )
         {
-            var s = new NetworkStream(socket);
+            var stream = new NetworkStream(socket);
             if (useTLS)
             {
                 var x509 = ServiceContainer.GetService<X509Certificate2>();
+                // 使用安全套接字层（SSL）安全协议，忽略证书验证
                 var ssl = new SslStream(
-                    s,
+                    stream,
                     false,
                     new RemoteCertificateValidationCallback((_, _, _, _) => true)
                 );
-                if (isServer)
+                try
                 {
-                    try
+                    if (isServer)
                     {
                         await ssl.AuthenticateAsServerAsync(x509, false, SslProtocols.Tls13, true);
                     }
-                    catch (AuthenticationException)
+                    else
                     {
-                        await socket.TryCloseAsync();
-                        throw;
+                        await ssl.AuthenticateAsClientAsync(targetHost);
                     }
                 }
-                else
+                catch (AuthenticationException)
                 {
-                    await ssl.AuthenticateAsClientAsync(targetHost);
+                    await socket.TryCloseAsync();
+                    Log.Write("SSL身份验证失败", LogType.Error, "AuthenticateAsServerAsync");
+                    throw;
                 }
+
                 return ssl;
             }
-            return s;
+            return stream;
         }
 
         /// <summary>
@@ -110,19 +111,26 @@ namespace CTunnel.Share.Expand
             CancellationToken cancellationToken
         )
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-            try
+            using var ms = new MemoryStream();
+            while (true)
             {
-                var count = await webSocket.ReceiveAsync(
-                    new Memory<byte>(buffer),
-                    cancellationToken
-                );
-                var obj = buffer.AsSpan(0, count.Count).ConvertModel<T>();
-                return obj;
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
+                var buffer = ArrayPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+                try
+                {
+                    var receiveRes = await webSocket.ReceiveAsync(
+                        new Memory<byte>(buffer),
+                        cancellationToken
+                    );
+                    await ms.WriteAsync(buffer.AsMemory(0, receiveRes.Count), cancellationToken);
+                    if (receiveRes.EndOfMessage)
+                    {
+                        return ms.ToArray().ConvertModel<T>();
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
             }
         }
 
@@ -132,12 +140,15 @@ namespace CTunnel.Share.Expand
         /// <param name="webSocket"></param>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public static async Task SendMessageAsync(this WebSocket webSocket, object obj)
+        public static async Task SendMessageAsync(
+            this WebSocket webSocket,
+            object obj,
+            SemaphoreSlim slim
+        )
         {
             await slim.WaitAsync();
             try
             {
-                await Task.CompletedTask;
                 var json = JsonConvert.SerializeObject(obj);
                 var bytes = Encoding.UTF8.GetBytes(json);
                 await webSocket.SendAsync(
@@ -169,7 +180,8 @@ namespace CTunnel.Share.Expand
             string requestId,
             byte[] bytes,
             int offset,
-            int count
+            int count,
+            SemaphoreSlim slim
         )
         {
             await slim.WaitAsync();
@@ -210,7 +222,7 @@ namespace CTunnel.Share.Expand
             var match = reg.Match(message);
             if (string.IsNullOrWhiteSpace(match.Value))
             {
-                return (string.Empty, 0);
+                return (string.Empty, default);
             }
             var uriBuilder = new UriBuilder(match.Value.Replace("Host: ", string.Empty));
             var host = uriBuilder.Host;

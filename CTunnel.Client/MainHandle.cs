@@ -30,7 +30,7 @@ namespace CTunnel.Client
                         Type = appConfig.Type
                     }
                 );
-                var socketResult = await masterSocket.ReadMessageAsync<SocketResult>(
+                var socketResult = await masterSocket.ReadMessageAsync<WebSocketResult>(
                     timeoutToken.Token
                 );
                 if (!socketResult.Success)

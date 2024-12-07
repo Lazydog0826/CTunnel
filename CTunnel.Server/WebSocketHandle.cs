@@ -21,7 +21,7 @@ namespace CTunnel.Server
             if (registerTunnelParam.Token != _appConfig.Token)
             {
                 await webSocket.SendMessageAsync(
-                    new SocketResult { Success = false, Message = "Token无效" }
+                    new WebSocketResult { Success = false, Message = "Token无效" }
                 );
                 await webSocket.TryCloseAsync();
                 return;

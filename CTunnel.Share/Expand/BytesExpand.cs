@@ -5,7 +5,13 @@ namespace CTunnel.Share.Expand
 {
     public static class BytesExpand
     {
-        public static T ConvertModel<T>(this Span<byte> bytes)
+        /// <summary>
+        /// 将byte[]转成字符串然后反序列化成对象
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="bytes"></param>
+        /// <returns></returns>
+        public static T ConvertModel<T>(this byte[] bytes)
         {
             var json = Encoding.UTF8.GetString(bytes);
             try
@@ -14,7 +20,7 @@ namespace CTunnel.Share.Expand
             }
             catch
             {
-                Log.Write(json, LogType.Error, "ConvertModel Failure");
+                Log.Write(json, LogType.Error, "ConvertModel");
                 throw;
             }
         }
