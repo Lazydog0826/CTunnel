@@ -31,27 +31,22 @@ namespace CTunnel.Server.SocketHandle
                         TargetSocketStream = socketStream
                     };
 
+                    // 解析HOST
                     (host, count) = await socketStream.ParseWebRequestAsync(buffer);
+
+                    // 根据HOST获取隧道
                     var tunnel = tunnelContext.GetTunnel(host);
+
+                    // 如果隧道不存在直接返回404
                     if (tunnel == null)
                     {
-                        var message = "Tunnel does not exist or no connection is available ";
-                        await socketStream.ReturnTemplateHtmlAsync(message);
+                        await socketStream.ReturnNotFoundAsync();
                         return;
                     }
+                    tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
                     try
                     {
-                        tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
-
-                        await tunnel.WebSocket.ForwardAsync(
-                            MessageTypeEnum.Forward,
-                            requestItem.RequestId,
-                            buffer,
-                            0,
-                            count,
-                            tunnel.Slim
-                        );
-                        while ((count = await socketStream.ReadAsync(buffer)) != 0)
+                        async Task ForwardToTunnelAsync()
                         {
                             await tunnel.WebSocket.ForwardAsync(
                                 MessageTypeEnum.Forward,
@@ -61,6 +56,11 @@ namespace CTunnel.Server.SocketHandle
                                 count,
                                 tunnel.Slim
                             );
+                        }
+                        await ForwardToTunnelAsync();
+                        while ((count = await socketStream.ReadAsync(buffer)) != 0)
+                        {
+                            await ForwardToTunnelAsync();
                         }
                     }
                     finally

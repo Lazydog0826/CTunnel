@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Buffers;
+using System.Text;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
@@ -12,11 +13,12 @@ namespace CTunnel.Server.TunnelTypeHandle
         {
             try
             {
-                if (_tunnelContext.AddTunnel(tunnel))
+                var isAdd = _tunnelContext.AddTunnel(tunnel);
+                if (isAdd)
                 {
                     // 添加到字典成功发送成功消息
                     await tunnel.WebSocket.SendMessageAsync(
-                        new WebSocketResult { Success = true, Message = "成功" },
+                        new WebSocketResult { Success = true },
                         tunnel.Slim
                     );
                     Log.Write($"注册隧道成功", LogType.Success, tunnel.DomainName);
@@ -40,45 +42,61 @@ namespace CTunnel.Server.TunnelTypeHandle
                                         (int)ms.Length,
                                         async buffer2 =>
                                         {
-                                            ms.Seek(0, SeekOrigin.Begin);
-                                            var buffer2ReadCount = await ms.ReadAsync(buffer2);
-                                            await ms.DisposeAsync();
-                                            ms = GlobalStaticConfig.MSManager.GetStream();
-
-                                            if (
-                                                Enum.IsDefined(
-                                                    typeof(MessageTypeEnum),
-                                                    buffer2.First()
-                                                )
-                                            )
-                                            {
-                                                var requestId = Encoding.UTF8.GetString(
-                                                    buffer2.AsSpan(1, 36)
-                                                );
-                                                var ri = tunnel.GetRequestItem(requestId);
-                                                if (ri != null)
+                                            await TaskExtend.NewTaskAsBeginFunc(
+                                                async () =>
                                                 {
-                                                    await ri.TargetSocketStream.WriteAsync(
-                                                        buffer2.AsMemory(37, buffer2ReadCount - 37)
+                                                    ms.Seek(0, SeekOrigin.Begin);
+                                                    var buffer2ReadCount = await ms.ReadAsync(
+                                                        buffer2
                                                     );
-                                                }
-                                                else
+                                                    await ms.DisposeAsync();
+                                                    ms = GlobalStaticConfig.MSManager.GetStream();
+                                                    return buffer2ReadCount;
+                                                },
+                                                async buffer2Count =>
                                                 {
-                                                    await tunnel.WebSocket.ForwardAsync(
-                                                        MessageTypeEnum.CloseForward,
-                                                        requestId,
-                                                        [],
-                                                        0,
-                                                        0,
-                                                        tunnel.Slim
-                                                    );
+                                                    if (
+                                                        Enum.IsDefined(
+                                                            typeof(MessageTypeEnum),
+                                                            buffer2.First()
+                                                        )
+                                                    )
+                                                    {
+                                                        var requestId = Encoding.UTF8.GetString(
+                                                            buffer2.AsSpan(1, 36)
+                                                        );
+                                                        var ri = tunnel.GetRequestItem(requestId);
+                                                        if (ri != null)
+                                                        {
+                                                            await ri.TargetSocketStream.WriteAsync(
+                                                                buffer2.AsMemory(
+                                                                    37,
+                                                                    buffer2Count - 37
+                                                                )
+                                                            );
+                                                        }
+                                                        else
+                                                        {
+                                                            await tunnel.WebSocket.ForwardAsync(
+                                                                MessageTypeEnum.CloseForward,
+                                                                requestId,
+                                                                [],
+                                                                0,
+                                                                0,
+                                                                tunnel.Slim
+                                                            );
+                                                        }
+                                                    }
+                                                },
+                                                null,
+                                                async _ =>
+                                                {
+                                                    ArrayPool<byte>.Shared.Return(buffer2);
+                                                    await Task.CompletedTask;
                                                 }
-                                            }
-                                            else
-                                            {
-                                                Log.Write("非法数据格式", LogType.Error);
-                                            }
-                                        }
+                                            );
+                                        },
+                                        false
                                     );
                                 }
                             }
@@ -87,15 +105,13 @@ namespace CTunnel.Server.TunnelTypeHandle
                 }
                 else
                 {
-                    throw new Exception("注册失败");
+                    var result = new WebSocketResult { Success = false, Message = "注册失败，域名重复" };
+                    await tunnel.WebSocket.SendMessageAsync(result, tunnel.Slim);
+                    throw new Exception(result.Message);
                 }
             }
             catch (Exception ex)
             {
-                await tunnel.WebSocket.SendMessageAsync(
-                    new WebSocketResult { Success = false, Message = ex.Message },
-                    tunnel.Slim
-                );
                 await _tunnelContext.RemoveAsync(tunnel);
                 Log.Write(ex.Message, LogType.Error);
             }
