@@ -5,21 +5,19 @@ namespace CTunnel.Share.Expand
     public static class WebStatusResponse
     {
         /// <summary>
-        /// 返回模板html响应
+        /// 返回NotFound响应
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="message"></param>
         /// <returns></returns>
-        public static async Task ReturnTemplateHtmlAsync(this Stream stream, string message)
+        public static async Task ReturnNotFoundAsync(this Stream stream)
         {
-            var responseContent = $"<h1>{message}</h1>";
-            var httpResponse =
-                $"HTTP/1.1 200 OK\r\n"
-                + $"Content-Type: text/html; charset=utf-8\r\n"
-                + $"Content-Length: {responseContent.Length}\r\n"
-                + $"\r\n"
-                + responseContent;
-            await stream.WriteAsync(Encoding.UTF8.GetBytes(httpResponse));
+            var response =
+                "HTTP/1.1 404 Not Found\r\n"
+                + "Content-Type: text/html\r\n"
+                + "\r\n"
+                + "<html><body><h1>404 Not Found</h1><p>The requested resource was not found.</p></body></html>";
+            await stream.WriteAsync(Encoding.UTF8.GetBytes(response));
         }
     }
 }

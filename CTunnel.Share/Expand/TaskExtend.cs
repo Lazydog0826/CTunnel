@@ -22,7 +22,6 @@
                     }
                     catch (Exception ex)
                     {
-                        Log.Write(ex.Message, LogType.Error);
                         if (catchFunc != null)
                         {
                             await catchFunc.Invoke(ex);

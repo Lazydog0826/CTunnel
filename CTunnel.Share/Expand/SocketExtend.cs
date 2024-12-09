@@ -42,11 +42,8 @@ namespace CTunnel.Share.Expand
             {
                 try
                 {
-                    await webSocket.CloseAsync(
-                        WebSocketCloseStatus.Empty,
-                        string.Empty,
-                        CancellationToken.None
-                    );
+                    webSocket.Abort();
+                    await Task.CompletedTask;
                 }
                 catch { }
             }
@@ -130,8 +127,12 @@ namespace CTunnel.Share.Expand
                         if (receiveRes.EndOfMessage)
                         {
                             ms.Seek(0, SeekOrigin.Begin);
-                            t = ms.GetMemory().ConvertModel<T>();
-                            break;
+                            try
+                            {
+                                t = ms.GetMemory().ConvertModel<T>();
+                                break;
+                            }
+                            catch { }
                         }
                     }
                 }
