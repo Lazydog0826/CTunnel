@@ -7,6 +7,7 @@ using CTunnel.Share;
 using CTunnel.Share.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 var rootCommand = new RootCommand();
 
@@ -28,6 +29,10 @@ rootCommand.SetHandler(
     {
         Log.WriteLogo();
         var builder = Host.CreateDefaultBuilder();
+        builder.ConfigureLogging(logging =>
+        {
+            logging.ClearProviders();
+        });
         builder.UseConsoleLifetime();
         builder.ConfigureServices(services =>
         {
@@ -50,6 +55,7 @@ rootCommand.SetHandler(
             services.AddHostedService<MainBackgroundService>();
         });
         var app = builder.Build();
+        GlobalStaticConfig.ServiceProvider = app.Services;
         await app.RunAsync();
     },
     serverOption,

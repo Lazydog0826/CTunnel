@@ -10,28 +10,37 @@ using Newtonsoft.Json;
 
 namespace CTunnel.Server
 {
-    public class WebSocketHandleMiddleware(AppConfig _appConfig, TunnelContext tunnelContext)
+    public class WebSocketHandleMiddleware(
+        RequestDelegate next,
+        AppConfig _appConfig,
+        TunnelContext tunnelContext
+    )
     {
         public async Task Invoke(HttpContext httpContext)
         {
             if (httpContext.WebSockets.IsWebSocketRequest)
             {
                 var webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
+                var cancellationTokenSource = new CancellationTokenSource();
                 TaskExtend.NewTask(
                     async () =>
                     {
                         await HandleAsync(webSocket, httpContext.Request.Headers);
                         await webSocket.TryCloseAsync();
+                        await cancellationTokenSource.CancelAsync();
                     },
                     async ex =>
                     {
                         await webSocket.TryCloseAsync();
+                        await cancellationTokenSource.CancelAsync();
                         Log.Write(ex.Message, LogType.Error);
                     }
                 );
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationTokenSource.Token);
             }
             else
             {
+                await next(httpContext);
                 httpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             }
         }
@@ -80,6 +89,7 @@ namespace CTunnel.Server
             finally
             {
                 await tunnelContext.RemoveAsync(newTimmel);
+                Log.Write("连接已断开", LogType.Error, newTimmel.DomainName);
             }
         }
     }

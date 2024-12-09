@@ -68,11 +68,12 @@ namespace CTunnel.Server.TunnelTypeHandle
                                                         var ri = tunnel.GetRequestItem(requestId);
                                                         if (ri != null)
                                                         {
-                                                            await ri.TargetSocketStream.WriteAsync(
+                                                            await ri.TargetSocketStream.WriteAsSlimAsync(
                                                                 buffer2.AsMemory(
                                                                     37,
                                                                     buffer2Count - 37
-                                                                )
+                                                                ),
+                                                                ri.Slim
                                                             );
                                                         }
                                                         else

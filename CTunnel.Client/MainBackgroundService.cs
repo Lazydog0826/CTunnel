@@ -22,6 +22,7 @@ namespace CTunnel.Client
             {
                 var timeoutToken = new CancellationTokenSource(GlobalStaticConfig.Timeout);
                 var masterSocket = new ClientWebSocket();
+                masterSocket.Options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
                 masterSocket.Options.SetRequestHeader(
                     "RegisterTunnelParam",
                     JsonConvert.SerializeObject(

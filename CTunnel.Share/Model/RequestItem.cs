@@ -12,9 +12,12 @@ namespace CTunnel.Share.Model
 
         public Stream TargetSocketStream { get; set; } = null!;
 
+        public SemaphoreSlim Slim { get; set; } = new(1);
+
         public async Task CloseAsync(ConcurrentDictionary<string, RequestItem> pairs)
         {
             pairs.Remove(RequestId, out var _);
+            Slim.Dispose();
             await TargetSocket.TryCloseAsync();
         }
     }

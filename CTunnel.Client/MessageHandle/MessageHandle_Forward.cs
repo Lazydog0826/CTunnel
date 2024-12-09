@@ -24,7 +24,10 @@ namespace CTunnel.Client.MessageHandle
             var requestId = Encoding.UTF8.GetString(bytes.AsSpan(1, 36));
             if (pairs.TryGetValue(requestId, out var ri2))
             {
-                await ri2.TargetSocketStream.WriteAsync(bytes.AsMemory(37, bytesCount - 37));
+                await ri2.TargetSocketStream.WriteAsSlimAsync(
+                    bytes.AsMemory(37, bytesCount - 37),
+                    ri2.Slim
+                );
             }
             else
             {
@@ -53,7 +56,10 @@ namespace CTunnel.Client.MessageHandle
                         appConfig.Target.Host
                     );
                     pairs.TryAdd(requestId, ri);
-                    await ri.TargetSocketStream.WriteAsync(bytes.AsMemory(37, bytesCount - 37));
+                    await ri.TargetSocketStream.WriteAsSlimAsync(
+                        bytes.AsMemory(37, bytesCount - 37),
+                        ri.Slim
+                    );
                     await BytesExpand.UseBufferAsync(
                         GlobalStaticConfig.BufferSize,
                         async buffer =>

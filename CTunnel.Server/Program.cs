@@ -61,4 +61,9 @@ var app = builder.Build();
 GlobalStaticConfig.ServiceProvider = app.Services;
 app.UseWebSockets();
 app.UseMiddleware<WebSocketHandleMiddleware>();
-await app.StartAsync();
+
+Log.Write($"服务端连接端口：{appConfig.ServerPort}", LogType.Important);
+Log.Write($"HTTP端口：{appConfig.HttpPort}", LogType.Important);
+Log.Write($"HTTPS端口：{appConfig.HttpsPort}", LogType.Important);
+Log.Write("服务端已启动...", LogType.Success);
+await app.RunAsync();
