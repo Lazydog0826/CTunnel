@@ -37,21 +37,31 @@ namespace CTunnel.Client.MessageHandle
                         ProtocolType.Tcp
                     )
                 };
-                await ri.TargetSocket.ConnectAsync(
-                    new DnsEndPoint(appConfig.Target.Host, appConfig.Target.Port)
-                );
-                ri.TargetSocket.SetSocketOption(
-                    SocketOptionLevel.Socket,
-                    SocketOptionName.KeepAlive,
-                    true
-                );
-                ri.TargetSocketStream = await ri.TargetSocket.GetStreamAsync(
-                    TLSExtend.IsNeedTLS(appConfig.Target),
-                    false,
-                    appConfig.Target.Host
-                );
-                pairs.TryAdd(requestId, ri);
-                await ri.TargetSocketStream.WriteAsync(bytes.AsMemory(37, bytesCount - 37));
+
+                try
+                {
+                    await ri.TargetSocket.ConnectAsync(
+                        new DnsEndPoint(appConfig.Target.Host, appConfig.Target.Port)
+                    );
+                    ri.TargetSocket.SetSocketOption(
+                        SocketOptionLevel.Socket,
+                        SocketOptionName.KeepAlive,
+                        true
+                    );
+                    ri.TargetSocketStream = await ri.TargetSocket.GetStreamAsync(
+                        TLSExtend.IsNeedTLS(appConfig.Target),
+                        false,
+                        appConfig.Target.Host
+                    );
+                    pairs.TryAdd(requestId, ri);
+                    await ri.TargetSocketStream.WriteAsync(bytes.AsMemory(37, bytesCount - 37));
+                }
+                catch
+                {
+                    await ri.CloseAsync(pairs);
+                    throw;
+                }
+
                 TaskExtend.NewTask(
                     async () =>
                     {
