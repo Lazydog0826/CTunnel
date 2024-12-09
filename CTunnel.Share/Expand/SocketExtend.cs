@@ -6,6 +6,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using CTunnel.Share.Enums;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 
 namespace CTunnel.Share.Expand
@@ -79,7 +80,8 @@ namespace CTunnel.Share.Expand
                 {
                     if (isServer)
                     {
-                        var x509 = ServiceContainer.GetService<X509Certificate2>();
+                        var x509 =
+                            GlobalStaticConfig.ServiceProvider.GetRequiredService<X509Certificate2>();
                         await ssl.AuthenticateAsServerAsync(x509, false, SslProtocols.Tls13, true);
                     }
                     else

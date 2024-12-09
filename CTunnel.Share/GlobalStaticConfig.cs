@@ -21,5 +21,10 @@ namespace CTunnel.Share
         /// MemoryStream对象提供池化
         /// </summary>
         public static readonly RecyclableMemoryStreamManager MSManager = new();
+
+        /// <summary>
+        /// 服务容器
+        /// </summary>
+        public static IServiceProvider ServiceProvider { get; set; } = null!;
     }
 }
