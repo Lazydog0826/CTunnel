@@ -12,6 +12,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+Console.CancelKeyPress += (_, _) =>
+{
+    Environment.Exit(0);
+};
 Log.WriteLogo();
 var configFile = args.FirstOrDefault();
 if (string.IsNullOrWhiteSpace(configFile))

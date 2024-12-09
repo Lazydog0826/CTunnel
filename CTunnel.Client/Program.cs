@@ -9,6 +9,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+Console.CancelKeyPress += (_, _) =>
+{
+    Environment.Exit(0);
+};
+
 var rootCommand = new RootCommand();
 
 var serverOption = new Option<string>("--server", "服务端");
