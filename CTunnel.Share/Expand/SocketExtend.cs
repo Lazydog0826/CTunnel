@@ -214,9 +214,9 @@ namespace CTunnel.Share.Expand
             }
             finally
             {
-                    slim.Release();
-                }
+                slim.Release();
             }
+        }
 
         /// <summary>
         /// 解析WEB请求
@@ -231,13 +231,15 @@ namespace CTunnel.Share.Expand
         {
             var count = await stream.ReadAsync(new Memory<byte>(buffer));
             var message = Encoding.UTF8.GetString(buffer[..count]);
-            var reg = new Regex("Host:\\s(.+)", RegexOptions.Multiline);
+
+            var reg = new Regex(@"Host:(\s?)(.+)", RegexOptions.IgnoreCase);
             var match = reg.Match(message);
             if (string.IsNullOrWhiteSpace(match.Value))
             {
                 return (string.Empty, default);
             }
-            var uriBuilder = new UriBuilder(match.Value.Replace("Host: ", string.Empty));
+            var replaceReg = new Regex(@"Host:(\s?)", RegexOptions.IgnoreCase);
+            var uriBuilder = new UriBuilder(replaceReg.Replace(match.Value, string.Empty));
             var host = uriBuilder.Host;
             return (host, count);
         }
