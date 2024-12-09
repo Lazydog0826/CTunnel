@@ -4,8 +4,8 @@
     "ServerPort": 8888,
     "HttpPort": 80,
     "HttpsPort": 443,
-    "Certificate": "E:\\SystenFile\\Desktop\\ctunnel\\certificate.pem",
-    "CertificateKey": "E:\\SystenFile\\Desktop\\ctunnel\\private_key.pem",
+    "Certificate": "D:\\SystemFile\\桌面\\Github\\ctunnel\\certificate.pem",
+    "CertificateKey": "D:\\SystemFile\\桌面\\Github\\ctunnel\\private_key.pem",
     "Token": "TOKEN_TEST"
   }
 }

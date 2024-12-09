@@ -86,7 +86,7 @@ namespace CTunnel.Server.TunnelTypeHandle
                 {
                     var result = new WebSocketResult { Success = false, Message = "注册失败，域名重复" };
                     await tunnel.WebSocket.SendMessageAsync(result, tunnel.Slim);
-                    throw new Exception(result.Message);
+                    await tunnel.CloseAsync();
                 }
             }
             catch (Exception ex)
