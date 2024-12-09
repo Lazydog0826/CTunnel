@@ -6,6 +6,7 @@ using CTunnel.Client.MessageHandle;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 var rootCommand = new RootCommand();
 
@@ -26,7 +27,9 @@ rootCommand.SetHandler(
     async (server, token, domain, port, type, target) =>
     {
         Log.WriteLogo();
-        await ServiceContainer.RegisterServiceAsync(async services =>
+        var builder = Host.CreateDefaultBuilder();
+        builder.UseConsoleLifetime();
+        builder.ConfigureServices(services =>
         {
             services.AddKeyedSingleton<IMessageHandle, MessageHandle_Forward>(
                 nameof(MessageTypeEnum.Forward)
@@ -34,18 +37,20 @@ rootCommand.SetHandler(
             services.AddKeyedSingleton<IMessageHandle, MessageHandle_CloseForward>(
                 nameof(MessageTypeEnum.CloseForward)
             );
-            await Task.CompletedTask;
+            var config = new AppConfig()
+            {
+                Token = token,
+                DomainName = domain,
+                Port = port,
+                Server = new UriBuilder(server),
+                Target = new UriBuilder(target),
+                Type = (TunnelTypeEnum)Enum.Parse(typeof(TunnelTypeEnum), type)
+            };
+            services.AddSingleton(config);
+            services.AddHostedService<MainBackgroundService>();
         });
-        var config = new AppConfig()
-        {
-            Token = token,
-            DomainName = domain,
-            Port = port,
-            Server = new UriBuilder(server),
-            Target = new UriBuilder(target),
-            Type = (TunnelTypeEnum)Enum.Parse(typeof(TunnelTypeEnum), type)
-        };
-        await MainHandle.HandleAsync(config);
+        var app = builder.Build();
+        await app.RunAsync();
     },
     serverOption,
     tokenOption,
