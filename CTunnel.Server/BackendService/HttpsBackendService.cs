@@ -14,7 +14,7 @@ namespace CTunnel.Server.BackendService
                 GlobalStaticConfig.ServiceProvider.GetRequiredKeyedService<ISocketHandle>("Https");
             await SocketListen.CreateSocketListenAsync(
                 ProtocolType.Tcp,
-                appConfig.HttpPort,
+                appConfig.HttpsPort,
                 socketHandle
             );
         }
