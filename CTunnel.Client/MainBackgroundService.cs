@@ -1,5 +1,4 @@
-﻿using System.Buffers;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using CTunnel.Client.MessageHandle;
 using CTunnel.Share;
@@ -67,48 +66,30 @@ namespace CTunnel.Client
                                     (int)ms.Length,
                                     async buffer2 =>
                                     {
-                                        await TaskExtend.NewTaskAsBeginFunc(
-                                            async () =>
-                                            {
-                                                ms.Seek(0, SeekOrigin.Begin);
-                                                var buffer2Count = await ms.ReadAsync(buffer2);
-                                                await ms.DisposeAsync();
-                                                ms = GlobalStaticConfig.MSManager.GetStream();
-                                                return buffer2Count;
-                                            },
-                                            async buffer2Count =>
-                                            {
-                                                if (
-                                                    Enum.IsDefined(
-                                                        typeof(MessageTypeEnum),
-                                                        buffer2.First()
-                                                    )
+                                        ms.Seek(0, SeekOrigin.Begin);
+                                        var buffer2Count = await ms.ReadAsync(buffer2);
+                                        await ms.DisposeAsync();
+                                        ms = GlobalStaticConfig.MSManager.GetStream();
+
+                                        if (
+                                            Enum.IsDefined(typeof(MessageTypeEnum), buffer2.First())
+                                        )
+                                        {
+                                            var type = (MessageTypeEnum)buffer2.First();
+                                            await GlobalStaticConfig
+                                                .ServiceProvider.GetRequiredKeyedService<IMessageHandle>(
+                                                    type.ToString()
                                                 )
-                                                {
-                                                    var type = (MessageTypeEnum)buffer2.First();
-                                                    await GlobalStaticConfig
-                                                        .ServiceProvider.GetRequiredKeyedService<IMessageHandle>(
-                                                            type.ToString()
-                                                        )
-                                                        .HandleAsync(
-                                                            masterSocket,
-                                                            buffer2,
-                                                            buffer2Count,
-                                                            appConfig,
-                                                            ConcurrentDictionary,
-                                                            slim
-                                                        );
-                                                }
-                                            },
-                                            null,
-                                            async obj =>
-                                            {
-                                                ArrayPool<byte>.Shared.Return(buffer2);
-                                                await Task.CompletedTask;
-                                            }
-                                        );
-                                    },
-                                    false
+                                                .HandleAsync(
+                                                    masterSocket,
+                                                    buffer2,
+                                                    buffer2Count,
+                                                    appConfig,
+                                                    ConcurrentDictionary,
+                                                    slim
+                                                );
+                                        }
+                                    }
                                 );
                             }
                         }
