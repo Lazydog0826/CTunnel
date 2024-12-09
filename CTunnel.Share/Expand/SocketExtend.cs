@@ -214,9 +214,9 @@ namespace CTunnel.Share.Expand
             }
             finally
             {
-                slim.Release();
+                    slim.Release();
+                }
             }
-        }
 
         /// <summary>
         /// 解析WEB请求
@@ -240,30 +240,6 @@ namespace CTunnel.Share.Expand
             var uriBuilder = new UriBuilder(match.Value.Replace("Host: ", string.Empty));
             var host = uriBuilder.Host;
             return (host, count);
-        }
-
-        /// <summary>
-        /// 使用信号量控制并发写入
-        /// </summary>
-        /// <param name="stream"></param>
-        /// <param name="memory"></param>
-        /// <param name="slim"></param>
-        /// <returns></returns>
-        public static async Task WriteAsSlimAsync(
-            this Stream stream,
-            Memory<byte> memory,
-            SemaphoreSlim slim
-        )
-        {
-            await slim.WaitAsync();
-            try
-            {
-                await stream.WriteAsync(memory);
-            }
-            finally
-            {
-                slim.Release();
-            }
         }
     }
 }
