@@ -37,52 +37,54 @@ namespace CTunnel.Client.MessageHandle
                         ProtocolType.Tcp
                     )
                 };
-                try
-                {
-                    await ri.TargetSocket.ConnectAsync(
-                        new DnsEndPoint(appConfig.Target.Host, appConfig.Target.Port)
-                    );
-                    ri.TargetSocket.SetSocketOption(
-                        SocketOptionLevel.Socket,
-                        SocketOptionName.KeepAlive,
-                        true
-                    );
-                    ri.TargetSocketStream = await ri.TargetSocket.GetStreamAsync(
-                        TLSExtend.IsNeedTLS(appConfig.Target),
-                        false,
-                        appConfig.Target.Host
-                    );
-                    pairs.TryAdd(requestId, ri);
-                    await ri.TargetSocketStream.WriteAsync(bytes.AsMemory(37, bytesCount - 37));
-                    await BytesExpand.UseBufferAsync(
-                        GlobalStaticConfig.BufferSize,
-                        async buffer =>
-                        {
-                            int count;
-                            while (
-                                (
-                                    count = await ri.TargetSocketStream.ReadAsync(
-                                        new Memory<byte>(buffer)
-                                    )
-                                ) != 0
-                            )
+                await ri.TargetSocket.ConnectAsync(
+                    new DnsEndPoint(appConfig.Target.Host, appConfig.Target.Port)
+                );
+                ri.TargetSocket.SetSocketOption(
+                    SocketOptionLevel.Socket,
+                    SocketOptionName.KeepAlive,
+                    true
+                );
+                ri.TargetSocketStream = await ri.TargetSocket.GetStreamAsync(
+                    TLSExtend.IsNeedTLS(appConfig.Target),
+                    false,
+                    appConfig.Target.Host
+                );
+                pairs.TryAdd(requestId, ri);
+                await ri.TargetSocketStream.WriteAsync(bytes.AsMemory(37, bytesCount - 37));
+                TaskExtend.NewTask(
+                    async () =>
+                    {
+                        await BytesExpand.UseBufferAsync(
+                            GlobalStaticConfig.BufferSize,
+                            async buffer =>
                             {
-                                await webSocket.ForwardAsync(
-                                    MessageTypeEnum.Forward,
-                                    requestId,
-                                    buffer,
-                                    0,
-                                    count,
-                                    slim
-                                );
+                                int count;
+                                while (
+                                    (
+                                        count = await ri.TargetSocketStream.ReadAsync(
+                                            new Memory<byte>(buffer)
+                                        )
+                                    ) != 0
+                                )
+                                {
+                                    await webSocket.ForwardAsync(
+                                        MessageTypeEnum.Forward,
+                                        requestId,
+                                        buffer,
+                                        0,
+                                        count,
+                                        slim
+                                    );
+                                }
                             }
-                        }
-                    );
-                }
-                finally
-                {
-                    await ri.CloseAsync(pairs);
-                }
+                        );
+                    },
+                    async _ =>
+                    {
+                        await ri.CloseAsync(pairs);
+                    }
+                );
             }
         }
     }

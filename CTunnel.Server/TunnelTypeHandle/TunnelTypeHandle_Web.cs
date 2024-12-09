@@ -1,5 +1,4 @@
-﻿using System.Buffers;
-using System.Text;
+﻿using System.Text;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
@@ -42,61 +41,41 @@ namespace CTunnel.Server.TunnelTypeHandle
                                         (int)ms.Length,
                                         async buffer2 =>
                                         {
-                                            await TaskExtend.NewTaskAsBeginFunc(
-                                                async () =>
+                                            ms.Seek(0, SeekOrigin.Begin);
+                                            var buffer2Count = await ms.ReadAsync(buffer2);
+                                            await ms.DisposeAsync();
+                                            ms = GlobalStaticConfig.MSManager.GetStream();
+
+                                            if (
+                                                Enum.IsDefined(
+                                                    typeof(MessageTypeEnum),
+                                                    buffer2.First()
+                                                )
+                                            )
+                                            {
+                                                var requestId = Encoding.UTF8.GetString(
+                                                    buffer2.AsSpan(1, 36)
+                                                );
+                                                var ri = tunnel.GetRequestItem(requestId);
+                                                if (ri != null)
                                                 {
-                                                    ms.Seek(0, SeekOrigin.Begin);
-                                                    var buffer2ReadCount = await ms.ReadAsync(
-                                                        buffer2
+                                                    await ri.TargetSocketStream.WriteAsync(
+                                                        buffer2.AsMemory(37, buffer2Count - 37)
                                                     );
-                                                    await ms.DisposeAsync();
-                                                    ms = GlobalStaticConfig.MSManager.GetStream();
-                                                    return buffer2ReadCount;
-                                                },
-                                                async buffer2Count =>
-                                                {
-                                                    if (
-                                                        Enum.IsDefined(
-                                                            typeof(MessageTypeEnum),
-                                                            buffer2.First()
-                                                        )
-                                                    )
-                                                    {
-                                                        var requestId = Encoding.UTF8.GetString(
-                                                            buffer2.AsSpan(1, 36)
-                                                        );
-                                                        var ri = tunnel.GetRequestItem(requestId);
-                                                        if (ri != null)
-                                                        {
-                                                            await ri.TargetSocketStream.WriteAsync(
-                                                                buffer2.AsMemory(
-                                                                    37,
-                                                                    buffer2Count - 37
-                                                                )
-                                                            );
-                                                        }
-                                                        else
-                                                        {
-                                                            await tunnel.WebSocket.ForwardAsync(
-                                                                MessageTypeEnum.CloseForward,
-                                                                requestId,
-                                                                [],
-                                                                0,
-                                                                0,
-                                                                tunnel.Slim
-                                                            );
-                                                        }
-                                                    }
-                                                },
-                                                null,
-                                                async _ =>
-                                                {
-                                                    ArrayPool<byte>.Shared.Return(buffer2);
-                                                    await Task.CompletedTask;
                                                 }
-                                            );
-                                        },
-                                        false
+                                                else
+                                                {
+                                                    await tunnel.WebSocket.ForwardAsync(
+                                                        MessageTypeEnum.CloseForward,
+                                                        requestId,
+                                                        [],
+                                                        0,
+                                                        0,
+                                                        tunnel.Slim
+                                                    );
+                                                }
+                                            }
+                                        }
                                     );
                                 }
                             }
