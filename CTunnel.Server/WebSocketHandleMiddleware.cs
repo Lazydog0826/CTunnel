@@ -88,7 +88,14 @@ namespace CTunnel.Server
             }
             finally
             {
-                await tunnelContext.RemoveTunnelAsync(newTimmel.Key);
+                if (newTimmel.IsAdd)
+                {
+                    await tunnelContext.RemoveTunnelAsync(newTimmel.Key);
+                }
+                else
+                {
+                    await newTimmel.CloseAsync();
+                }
                 Log.Write("连接已断开", LogType.Error, newTimmel.Key);
             }
         }

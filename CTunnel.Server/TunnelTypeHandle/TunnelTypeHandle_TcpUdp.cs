@@ -14,8 +14,8 @@ namespace CTunnel.Server.TunnelTypeHandle
         {
             // Tcp和Udp的key为监听的端口
             tunnel.Key = tunnel.ListenPort.ToString();
-            var isAdd = _tunnelContext.AddTunnel(tunnel);
-            if (isAdd)
+            tunnel.IsAdd = _tunnelContext.AddTunnel(tunnel);
+            if (tunnel.IsAdd)
             {
                 // 添加到字典成功发送成功消息
                 await tunnel.WebSocket.SendMessageAsync(

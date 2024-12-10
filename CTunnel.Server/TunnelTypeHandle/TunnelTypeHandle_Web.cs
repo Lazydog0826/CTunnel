@@ -12,8 +12,8 @@ namespace CTunnel.Server.TunnelTypeHandle
         {
             // Web类型将域名作为KEY
             tunnel.Key = tunnel.DomainName;
-            var isAdd = _tunnelContext.AddTunnel(tunnel);
-            if (isAdd)
+            tunnel.IsAdd = _tunnelContext.AddTunnel(tunnel);
+            if (tunnel.IsAdd)
             {
                 // 添加到字典成功发送成功消息
                 await tunnel.WebSocket.SendMessageAsync(

@@ -14,6 +14,11 @@ namespace CTunnel.Share.Model
         public string Key { get; set; } = string.Empty;
 
         /// <summary>
+        /// 是否添加成功
+        /// </summary>
+        public bool IsAdd { get; set; }
+
+        /// <summary>
         /// 监听端口
         /// </summary>
         public int ListenPort { get; set; }
