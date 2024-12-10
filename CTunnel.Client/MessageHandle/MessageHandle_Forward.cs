@@ -26,7 +26,7 @@ namespace CTunnel.Client.MessageHandle
                     TargetSocket = new Socket(
                         AddressFamily.InterNetwork,
                         SocketType.Stream,
-                        ProtocolType.Tcp
+                        appConfig.Type.ToProtocolType()
                     )
                 };
 
