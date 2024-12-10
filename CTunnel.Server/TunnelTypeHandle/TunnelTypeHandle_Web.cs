@@ -21,7 +21,6 @@ namespace CTunnel.Server.TunnelTypeHandle
                     tunnel.Slim
                 );
                 Log.Write($"注册隧道成功", LogType.Success, tunnel.Key);
-
                 // 手动关闭不使用 using
                 var ms = GlobalStaticConfig.MSManager.GetStream();
                 await BytesExpand.UseBufferAsync(

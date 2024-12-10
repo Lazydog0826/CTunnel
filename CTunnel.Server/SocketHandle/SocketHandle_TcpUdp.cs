@@ -17,6 +17,7 @@ namespace CTunnel.Server.SocketHandle
                 GlobalStaticConfig.BufferSize,
                 async buffer =>
                 {
+                    var count = 1;
                     var requestItem = new RequestItem()
                     {
                         RequestId = Guid.NewGuid().ToString(),
@@ -30,8 +31,7 @@ namespace CTunnel.Server.SocketHandle
                     tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
                     try
                     {
-                        int count;
-                        while ((count = await socketStream.ReadAsync(buffer)) != 0)
+                        async Task ForwardToTunnelAsync()
                         {
                             await tunnel.WebSocket.ForwardAsync(
                                 MessageTypeEnum.Forward,
@@ -41,6 +41,12 @@ namespace CTunnel.Server.SocketHandle
                                 count,
                                 tunnel.Slim
                             );
+                        }
+                        buffer[0] = 0;
+                        await ForwardToTunnelAsync();
+                        while ((count = await socketStream.ReadAsync(buffer)) != 0)
+                        {
+                            await ForwardToTunnelAsync();
                         }
                     }
                     finally

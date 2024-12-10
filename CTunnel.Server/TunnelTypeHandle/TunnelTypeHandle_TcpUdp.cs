@@ -22,8 +22,6 @@ namespace CTunnel.Server.TunnelTypeHandle
                     new WebSocketResult { Success = true },
                     tunnel.Slim
                 );
-                Log.Write($"注册隧道成功", LogType.Success, tunnel.Key);
-
                 // 开启端口监听
                 var socketHandle =
                     GlobalStaticConfig.ServiceProvider.GetRequiredKeyedService<ISocketHandle>(
@@ -34,7 +32,7 @@ namespace CTunnel.Server.TunnelTypeHandle
                     tunnel.ListenPort,
                     socketHandle
                 );
-                Log.Write($"监听 {tunnel.ListenPort} 端口", LogType.Success);
+                Log.Write($"注册隧道成功", LogType.Success, tunnel.Key);
                 // 手动关闭不使用 using
                 var ms = GlobalStaticConfig.MSManager.GetStream();
                 await BytesExpand.UseBufferAsync(
