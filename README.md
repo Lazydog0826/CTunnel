@@ -31,7 +31,7 @@
 
 ##### 客户端
 
-`./CTunnel.Client-win-x64.exe --server wss://38.59.249.179:8888 --token TOKEN_TEST --domain xx.xx.xx --type Web --target https://127.0.0.1:5500`
+`./CTunnel.Client-win-x64.exe --server wss://127.0.0.1:8888 --token TOKEN_TEST --domain xx.xx.xx --type Web --target https://127.0.0.1:5500`
 
 |参数|描述|
 |--|--|
