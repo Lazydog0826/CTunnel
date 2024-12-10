@@ -1,6 +1,5 @@
 {
   "AppConfig": {
-    "ServerIp": "127.0.0.1",
     "ServerPort": 8888,
     "HttpPort": 80,
     "HttpsPort": 443,
