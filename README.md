@@ -29,7 +29,7 @@
 }
 ```
 
-##### 客户端
+##### 客户端（暂只支持Web类型）
 
 `./CTunnel.Client-win-x64.exe --server wss://127.0.0.1:8888 --token TOKEN_TEST --domain xx.xx.xx --type Web --target https://127.0.0.1:5500`
 
