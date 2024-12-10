@@ -17,7 +17,7 @@ namespace CTunnel.Server.SocketHandle
                 GlobalStaticConfig.BufferSize,
                 async buffer =>
                 {
-                    var count = 1;
+                    var count = 0;
                     var requestItem = new RequestItem()
                     {
                         RequestId = Guid.NewGuid().ToString(),
@@ -42,7 +42,6 @@ namespace CTunnel.Server.SocketHandle
                                 tunnel.Slim
                             );
                         }
-                        buffer[0] = 0;
                         await ForwardToTunnelAsync();
                         while ((count = await socketStream.ReadAsync(buffer)) != 0)
                         {
