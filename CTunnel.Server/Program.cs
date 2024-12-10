@@ -50,6 +50,7 @@ builder.Services.AddSingleton<WebSocketHandleMiddleware>();
 
 builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandle_Http>("Http");
 builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandle_Https>("Https");
+builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandle_TcpUdp>("TcpUdp");
 
 #endregion ISocketHandle
 
@@ -57,6 +58,12 @@ builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandle_Https>("Https");
 
 builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_Web>(
     nameof(TunnelTypeEnum.Web)
+);
+builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_TcpUdp>(
+    nameof(TunnelTypeEnum.Tcp)
+);
+builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_TcpUdp>(
+    nameof(TunnelTypeEnum.Udp)
 );
 
 #endregion ITunnelTypeHandle

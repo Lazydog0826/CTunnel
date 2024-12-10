@@ -88,8 +88,8 @@ namespace CTunnel.Server
             }
             finally
             {
-                await tunnelContext.RemoveAsync(newTimmel);
-                Log.Write("连接已断开", LogType.Error, newTimmel.DomainName);
+                await tunnelContext.RemoveTunnelAsync(newTimmel.Key);
+                Log.Write("连接已断开", LogType.Error, newTimmel.Key);
             }
         }
     }

@@ -7,24 +7,27 @@ namespace CTunnel.Server
     {
         private readonly ConcurrentDictionary<string, TunnelModel> _tunnels = [];
 
-        public TunnelModel? GetTunnel(string host)
+        public TunnelModel? GetTunnel(string key)
         {
-            if (_tunnels.TryGetValue(host, out var t))
+            if (_tunnels.TryGetValue(key, out var t))
             {
                 return t;
             }
             return null;
         }
 
-        public bool AddTunnel(TunnelModel tunnelModel)
+        public bool AddTunnel(TunnelModel tunnel)
         {
-            return _tunnels.TryAdd(tunnelModel.DomainName, tunnelModel);
+            return _tunnels.TryAdd(tunnel.Key, tunnel);
         }
 
-        public async Task RemoveAsync(TunnelModel tunnelModel)
+        public async Task RemoveTunnelAsync(string key)
         {
-            _tunnels.Remove(tunnelModel.DomainName, out var _);
-            await tunnelModel.CloseAsync();
+            if (_tunnels.TryGetValue(key, out var tunnel))
+            {
+                _tunnels.Remove(key, out var _);
+                await tunnel.CloseAsync();
+            }
         }
     }
 }

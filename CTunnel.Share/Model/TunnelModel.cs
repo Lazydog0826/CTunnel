@@ -9,6 +9,11 @@ namespace CTunnel.Share.Model
     public class TunnelModel
     {
         /// <summary>
+        /// 隧道的KEY Web服务为对应的域名，Tcp和Udp为端口
+        /// </summary>
+        public string Key { get; set; } = string.Empty;
+
+        /// <summary>
         /// 监听端口
         /// </summary>
         public int ListenPort { get; set; }

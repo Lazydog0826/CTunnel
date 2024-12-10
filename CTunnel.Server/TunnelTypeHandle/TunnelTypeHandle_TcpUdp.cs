@@ -1,17 +1,19 @@
 ﻿using System.Text;
+using CTunnel.Server.SocketHandle;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CTunnel.Server.TunnelTypeHandle
 {
-    public class TunnelTypeHandle_Web(TunnelContext _tunnelContext) : ITunnelTypeHandle
+    public class TunnelTypeHandle_TcpUdp(TunnelContext _tunnelContext) : ITunnelTypeHandle
     {
         public async Task HandleAsync(TunnelModel tunnel)
         {
-            // Web类型将域名作为KEY
-            tunnel.Key = tunnel.DomainName;
+            // Tcp和Udp的key为监听的端口
+            tunnel.Key = tunnel.ListenPort.ToString();
             var isAdd = _tunnelContext.AddTunnel(tunnel);
             if (isAdd)
             {
@@ -22,6 +24,17 @@ namespace CTunnel.Server.TunnelTypeHandle
                 );
                 Log.Write($"注册隧道成功", LogType.Success, tunnel.Key);
 
+                // 开启端口监听
+                var socketHandle =
+                    GlobalStaticConfig.ServiceProvider.GetRequiredKeyedService<ISocketHandle>(
+                        "TcpUdp"
+                    );
+                SocketListen.CreateSocketListen(
+                    tunnel.Type.ToProtocolType(),
+                    tunnel.ListenPort,
+                    socketHandle
+                );
+                Log.Write($"监听 {tunnel.ListenPort} 端口", LogType.Success);
                 // 手动关闭不使用 using
                 var ms = GlobalStaticConfig.MSManager.GetStream();
                 await BytesExpand.UseBufferAsync(
@@ -56,12 +69,14 @@ namespace CTunnel.Server.TunnelTypeHandle
                                             var ri = tunnel.GetRequestItem(requestId);
                                             if (ri != null)
                                             {
+                                                // 转发给访问者
                                                 await ri.TargetSocketStream.WriteAsync(
                                                     buffer2.AsMemory(37, buffer2Count - 37)
                                                 );
                                             }
                                             else
                                             {
+                                                // 找不到通知客户端关闭请求
                                                 await tunnel.WebSocket.ForwardAsync(
                                                     MessageTypeEnum.CloseForward,
                                                     requestId,
@@ -81,7 +96,7 @@ namespace CTunnel.Server.TunnelTypeHandle
             }
             else
             {
-                var result = new WebSocketResult { Success = false, Message = "注册失败，域名重复" };
+                var result = new WebSocketResult { Success = false, Message = "注册失败，端口重复" };
                 await tunnel.WebSocket.SendMessageAsync(result, tunnel.Slim);
             }
         }
