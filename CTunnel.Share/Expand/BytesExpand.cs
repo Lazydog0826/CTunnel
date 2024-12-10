@@ -15,15 +15,7 @@ namespace CTunnel.Share.Expand
         public static T ConvertModel<T>(this Memory<byte> memory)
         {
             var json = Encoding.UTF8.GetString(memory.Span);
-            try
-            {
-                return JsonConvert.DeserializeObject<T>(json)!;
-            }
-            catch
-            {
-                Log.Write(json, LogType.Error, "ConvertModel");
-                throw;
-            }
+            return JsonConvert.DeserializeObject<T>(json)!;
         }
 
         /// <summary>
