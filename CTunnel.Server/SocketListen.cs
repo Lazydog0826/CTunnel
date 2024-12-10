@@ -7,7 +7,7 @@ namespace CTunnel.Server
 {
     public static class SocketListen
     {
-        public static async Task CreateSocketListenAsync(
+        public static Socket CreateSocketListen(
             ProtocolType protocolType,
             int port,
             ISocketHandle socketHandle
@@ -24,7 +24,7 @@ namespace CTunnel.Server
                     TaskExtend.NewTask(
                         async () =>
                         {
-                            await socketHandle.HandleAsync(newConnect);
+                            await socketHandle.HandleAsync(newConnect, port);
                             await newConnect.TryCloseAsync();
                         },
                         async _ =>
@@ -34,7 +34,7 @@ namespace CTunnel.Server
                     );
                 }
             });
-            await Task.Delay(Timeout.InfiniteTimeSpan);
+            return socket;
         }
     }
 }

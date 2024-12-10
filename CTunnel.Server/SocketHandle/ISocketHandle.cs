@@ -7,6 +7,6 @@ namespace CTunnel.Server.SocketHandle
     /// </summary>
     public interface ISocketHandle
     {
-        public Task HandleAsync(Socket socket);
+        public Task HandleAsync(Socket socket, int port);
     }
 }
