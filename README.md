@@ -37,6 +37,7 @@
 |--|--|
 |--server|服务端|
 |--token|Token|
-|--domain|域名|
+|--domain|域名,Web类型需要指定域名，Tcp与Udp则不需要指定|
+|--port|监听的端口，服务端对于隧道监听的端口，Tcp与Udp需要指定，Web类型则不需要|
 |--type|隧道类型，可选值：Web，Tcp，Udp|
 |--target|目标服务地址|
