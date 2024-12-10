@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Net.WebSockets;
+﻿using System.Net.WebSockets;
 using CTunnel.Client.MessageHandle;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
@@ -13,8 +12,6 @@ namespace CTunnel.Client
 {
     public class MainBackgroundService(AppConfig appConfig) : BackgroundService
     {
-        private readonly ConcurrentDictionary<string, RequestItem> ConcurrentDictionary = [];
-
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             try
@@ -27,7 +24,6 @@ namespace CTunnel.Client
                     JsonConvert.SerializeObject(
                         new RegisterTunnel
                         {
-                            Id = appConfig.Id,
                             Token = appConfig.Token,
                             DomainName = appConfig.DomainName,
                             ListenPort = appConfig.Port,
@@ -76,18 +72,15 @@ namespace CTunnel.Client
                                         )
                                         {
                                             var type = (MessageTypeEnum)buffer2.First();
-                                            await GlobalStaticConfig
-                                                .ServiceProvider.GetRequiredKeyedService<IMessageHandle>(
+                                            var messageHandle =
+                                                GlobalStaticConfig.ServiceProvider.GetRequiredKeyedService<IMessageHandle>(
                                                     type.ToString()
-                                                )
-                                                .HandleAsync(
-                                                    masterSocket,
-                                                    buffer2,
-                                                    buffer2Count,
-                                                    appConfig,
-                                                    ConcurrentDictionary,
-                                                    slim
                                                 );
+                                            await messageHandle.HandleAsync(
+                                                masterSocket,
+                                                buffer2,
+                                                buffer2Count
+                                            );
                                         }
                                     }
                                 );

@@ -1,14 +1,11 @@
-﻿using CTunnel.Share.Enums;
+﻿using System.Collections.Concurrent;
+using CTunnel.Share.Enums;
+using CTunnel.Share.Model;
 
 namespace CTunnel.Client
 {
     public class AppConfig
     {
-        /// <summary>
-        /// 唯一ID
-        /// </summary>
-        public string Id { get; set; } = string.Empty;
-
         /// <summary>
         /// 服务器
         /// </summary>
@@ -38,5 +35,15 @@ namespace CTunnel.Client
         /// 目标IP
         /// </summary>
         public UriBuilder Target { get; set; } = null!;
+
+        /// <summary>
+        /// 连接池（默认值初始化）
+        /// </summary>
+        public ConcurrentDictionary<string, RequestItem> ConcurrentDictionary { get; set; } = [];
+
+        /// <summary>
+        /// 信号（默认值初始化）
+        /// </summary>
+        public SemaphoreSlim Slim { get; set; } = new(1);
     }
 }

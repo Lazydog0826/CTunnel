@@ -23,10 +23,5 @@ namespace CTunnel.Share.Model
         /// 隧道类型
         /// </summary>
         public TunnelTypeEnum Type { get; set; }
-
-        /// <summary>
-        /// 唯一ID
-        /// </summary>
-        public string Id { get; set; } = string.Empty;
     }
 }
