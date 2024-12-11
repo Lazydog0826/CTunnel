@@ -66,22 +66,32 @@ namespace CTunnel.Client
                                         var buffer2Count = await ms.ReadAsync(buffer2);
                                         await ms.DisposeAsync();
                                         ms = GlobalStaticConfig.MSManager.GetStream();
-
-                                        if (
-                                            Enum.IsDefined(typeof(MessageTypeEnum), buffer2.First())
-                                        )
-                                        {
-                                            var type = (MessageTypeEnum)buffer2.First();
-                                            var messageHandle =
-                                                GlobalStaticConfig.ServiceProvider.GetRequiredKeyedService<IMessageHandle>(
-                                                    type.ToString()
-                                                );
-                                            await messageHandle.HandleAsync(
-                                                masterSocket,
-                                                buffer2,
-                                                buffer2Count
+                                        await buffer2
+                                            .AsMemory(0, buffer2Count)
+                                            .DecompressAsync(
+                                                async (decompressBuffer, decompressBufferCount) =>
+                                                {
+                                                    if (
+                                                        Enum.IsDefined(
+                                                            typeof(MessageTypeEnum),
+                                                            decompressBuffer.First()
+                                                        )
+                                                    )
+                                                    {
+                                                        var type = (MessageTypeEnum)
+                                                            decompressBuffer.First();
+                                                        var messageHandle =
+                                                            GlobalStaticConfig.ServiceProvider.GetRequiredKeyedService<IMessageHandle>(
+                                                                type.ToString()
+                                                            );
+                                                        await messageHandle.HandleAsync(
+                                                            masterSocket,
+                                                            decompressBuffer,
+                                                            decompressBufferCount
+                                                        );
+                                                    }
+                                                }
                                             );
-                                        }
                                     }
                                 );
                             }

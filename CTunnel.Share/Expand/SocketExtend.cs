@@ -126,10 +126,27 @@ namespace CTunnel.Share.Expand
                         );
                         if (receiveRes.EndOfMessage)
                         {
-                            ms.Seek(0, SeekOrigin.Begin);
                             try
                             {
-                                t = ms.GetMemory().ConvertModel<T>();
+                                await BytesExpand.UseBufferAsync(
+                                    (int)ms.Length,
+                                    async buffer2 =>
+                                    {
+                                        ms.Seek(0, SeekOrigin.Begin);
+                                        var buffer2Count = await ms.ReadAsync(buffer2);
+                                        await buffer2
+                                            .AsMemory(0, buffer2Count)
+                                            .DecompressAsync(
+                                                async (decompressBuffer, decompressBufferCount) =>
+                                                {
+                                                    t = decompressBuffer
+                                                        .AsMemory(0, decompressBufferCount)
+                                                        .ConvertModel<T>();
+                                                    await Task.CompletedTask;
+                                                }
+                                            );
+                                    }
+                                );
                                 break;
                             }
                             catch { }
@@ -157,12 +174,19 @@ namespace CTunnel.Share.Expand
             {
                 var json = JsonConvert.SerializeObject(obj);
                 var bytes = Encoding.UTF8.GetBytes(json);
-                await webSocket.SendAsync(
-                    bytes,
-                    WebSocketMessageType.Binary,
-                    true,
-                    CancellationToken.None
-                );
+                await bytes
+                    .AsMemory(0, bytes.Length)
+                    .CompressAsync(
+                        async (compressBuffer, compressBufferCount) =>
+                        {
+                            await webSocket.SendAsync(
+                                compressBuffer.AsMemory(0, compressBufferCount),
+                                WebSocketMessageType.Binary,
+                                true,
+                                CancellationToken.None
+                            );
+                        }
+                    );
             }
             finally
             {
@@ -203,12 +227,19 @@ namespace CTunnel.Share.Expand
                         ms.Write(bytes, offset, count);
                         ms.Seek(0, SeekOrigin.Begin);
                         var readCount = await ms.ReadAsync(new Memory<byte>(buffer));
-                        await webSocket.SendAsync(
-                            buffer.AsMemory(0, readCount),
-                            WebSocketMessageType.Binary,
-                            true,
-                            CancellationToken.None
-                        );
+                        await buffer
+                            .AsMemory(0, readCount)
+                            .CompressAsync(
+                                async (compressBuffer, compressBufferCount) =>
+                                {
+                                    await webSocket.SendAsync(
+                                        compressBuffer.AsMemory(0, compressBufferCount),
+                                        WebSocketMessageType.Binary,
+                                        true,
+                                        CancellationToken.None
+                                    );
+                                }
+                            );
                     }
                 );
             }

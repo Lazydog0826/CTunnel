@@ -57,34 +57,47 @@ namespace CTunnel.Server.TunnelTypeHandle
                                         await ms.DisposeAsync();
                                         ms = GlobalStaticConfig.MSManager.GetStream();
 
-                                        if (
-                                            Enum.IsDefined(typeof(MessageTypeEnum), buffer2.First())
-                                        )
-                                        {
-                                            var requestId = Encoding.UTF8.GetString(
-                                                buffer2.AsSpan(1, 36)
+                                        await buffer2
+                                            .AsMemory(0, buffer2Count)
+                                            .DecompressAsync(
+                                                async (decompressBuffer, decompressBufferCount) =>
+                                                {
+                                                    if (
+                                                        Enum.IsDefined(
+                                                            typeof(MessageTypeEnum),
+                                                            decompressBuffer.First()
+                                                        )
+                                                    )
+                                                    {
+                                                        var requestId = Encoding.UTF8.GetString(
+                                                            decompressBuffer.AsSpan(1, 36)
+                                                        );
+                                                        var ri = tunnel.GetRequestItem(requestId);
+                                                        if (ri != null)
+                                                        {
+                                                            // 转发给访问者
+                                                            await ri.TargetSocketStream.WriteAsync(
+                                                                decompressBuffer.AsMemory(
+                                                                    37,
+                                                                    decompressBufferCount - 37
+                                                                )
+                                                            );
+                                                        }
+                                                        else
+                                                        {
+                                                            // 找不到通知客户端关闭请求
+                                                            await tunnel.WebSocket.ForwardAsync(
+                                                                MessageTypeEnum.CloseForward,
+                                                                requestId,
+                                                                [],
+                                                                0,
+                                                                0,
+                                                                tunnel.Slim
+                                                            );
+                                                        }
+                                                    }
+                                                }
                                             );
-                                            var ri = tunnel.GetRequestItem(requestId);
-                                            if (ri != null)
-                                            {
-                                                // 转发给访问者
-                                                await ri.TargetSocketStream.WriteAsync(
-                                                    buffer2.AsMemory(37, buffer2Count - 37)
-                                                );
-                                            }
-                                            else
-                                            {
-                                                // 找不到通知客户端关闭请求
-                                                await tunnel.WebSocket.ForwardAsync(
-                                                    MessageTypeEnum.CloseForward,
-                                                    requestId,
-                                                    [],
-                                                    0,
-                                                    0,
-                                                    tunnel.Slim
-                                                );
-                                            }
-                                        }
                                     }
                                 );
                             }
