@@ -29,6 +29,8 @@
 }
 ```
 
+![2025_02_18_15_31_49.png](./2025_02_18_15_31_49.png)
+
 ##### 客户端
 
 `./CTunnel.Client-win-x64.exe --server wss://127.0.0.1:8888 --token TOKEN_TEST --domain xx.xx.xx --type Web --target https://127.0.0.1:5500`
@@ -41,3 +43,5 @@
 |--port|监听的端口，服务端对于隧道监听的端口，Tcp与Udp需要指定，Web类型则不需要|5500|
 |--type|隧道类型，可选值：Web，Tcp，Udp|Web|
 |--target|目标服务地址|http://127.0.0.1:8080|
+
+![2025_02_18_15_34_15.png](./2025_02_18_15_34_15.png)
