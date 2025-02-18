@@ -1,12 +1,12 @@
 # CTunnel
 
-#### 介绍
+## 介绍
 
-.NET内网穿透
+基于.NET8开发的内网穿透
 
-#### 使用
+## 使用
 
-##### 服务端
+### 服务端
 
 `./CTunnel.Server-linux-x64 AppConfig.json`
 
@@ -31,7 +31,7 @@
 
 ![2025_02_18_15_31_49.png](./2025_02_18_15_31_49.png)
 
-##### 客户端
+### 客户端
 
 `./CTunnel.Client-win-x64.exe --server wss://127.0.0.1:8888 --token TOKEN_TEST --domain xx.xx.xx --type Web --target https://127.0.0.1:5500`
 
