@@ -14,6 +14,11 @@ public class TunnelModel
     public string Key { get; set; } = string.Empty;
 
     /// <summary>
+    /// CancellationTokenSource
+    /// </summary>
+    public CancellationTokenSource CancellationTokenSource { get; set; } = null!;
+
+    /// <summary>
     /// 是否添加成功
     /// </summary>
     public bool IsAdd { get; set; }
@@ -59,11 +64,8 @@ public class TunnelModel
     /// <returns></returns>
     public async Task CloseAsync()
     {
-        await WebSocket.TryCloseAsync();
         await ListenSocket.TryCloseAsync();
         Slim.Dispose();
-
-        // 子链接全部断开
         foreach (var item in ConcurrentDictionary)
         {
             await item.Value.CloseAsync(ConcurrentDictionary);

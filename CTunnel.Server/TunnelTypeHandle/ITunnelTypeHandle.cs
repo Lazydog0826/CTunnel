@@ -1,5 +1,4 @@
-﻿using System.Net.WebSockets;
-using CTunnel.Share.Model;
+﻿using CTunnel.Share.Model;
 
 namespace CTunnel.Server.TunnelTypeHandle;
 

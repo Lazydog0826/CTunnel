@@ -6,20 +6,18 @@ using CTunnel.Share.Model;
 
 namespace CTunnel.Server.SocketHandle;
 
-public static class SocketHandle_Web
+public class SocketHandleTcpUdp(TunnelContext tunnelContext) : ISocketHandle
 {
-    public static async Task HandleAsync(Socket socket, TunnelContext tunnelContext, bool isHttps)
+    public async Task HandleAsync(Socket socket, int port)
     {
         socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-        var socketStream = await socket.GetStreamAsync(isHttps, true, string.Empty);
+        var socketStream = await socket.GetStreamAsync(false, true, string.Empty);
 
         await BytesExpand.UseBufferAsync(
             GlobalStaticConfig.BufferSize,
             async buffer =>
             {
-                string host;
-                int count;
-
+                var count = 0;
                 var requestItem = new RequestItem()
                 {
                     RequestId = Guid.NewGuid().ToString(),
@@ -27,18 +25,9 @@ public static class SocketHandle_Web
                     TargetSocketStream = socketStream,
                 };
 
-                // 解析HOST
-                (host, count) = await socketStream.ParseWebRequestAsync(buffer);
-
-                // 根据HOST获取隧道
-                var tunnel = tunnelContext.GetTunnel(host);
-
-                // 如果隧道不存在直接返回404
+                var tunnel = tunnelContext.GetTunnel(port.ToString());
                 if (tunnel == null)
-                {
-                    await socketStream.ReturnNotFoundAsync();
                     return;
-                }
                 tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
                 try
                 {

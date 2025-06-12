@@ -22,3 +22,12 @@ public readonly struct GlobalStaticConfig
     /// </summary>
     public static readonly RecyclableMemoryStreamManager MsManager = new();
 }
+
+public static class RecyclableMemoryStreamManagerExtension
+{
+    public static void Reset(this RecyclableMemoryStream stream)
+    {
+        stream.SetLength(0);
+        stream.Seek(0, SeekOrigin.Begin);
+    }
+}

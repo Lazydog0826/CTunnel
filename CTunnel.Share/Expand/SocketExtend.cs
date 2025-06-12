@@ -22,7 +22,7 @@ public static partial class SocketExtend
     /// <returns></returns>
     public static async Task TryCloseAsync(this Socket? socket)
     {
-        if (socket != null)
+        if (socket is { Connected: true })
         {
             try
             {
@@ -40,15 +40,20 @@ public static partial class SocketExtend
     /// 尝试关闭
     /// </summary>
     /// <param name="webSocket"></param>
+    /// <param name="msg"></param>
     /// <returns></returns>
-    public static async Task TryCloseAsync(this WebSocket? webSocket)
+    public static async Task TryCloseAsync(this WebSocket? webSocket, string? msg = null)
     {
-        if (webSocket != null)
+        if (webSocket is { State: WebSocketState.Open })
         {
             try
             {
+                await webSocket.CloseAsync(
+                    WebSocketCloseStatus.InternalServerError,
+                    msg,
+                    CancellationToken.None
+                );
                 webSocket.Abort();
-                await Task.CompletedTask;
             }
             catch
             {

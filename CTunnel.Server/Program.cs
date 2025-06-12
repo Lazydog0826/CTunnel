@@ -11,70 +11,79 @@ using Microsoft.AspNetCore.WebSockets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using MiniComp.Core.App;
 
 Console.CancelKeyPress += (_, _) =>
 {
     Environment.Exit(0);
 };
-Log.WriteLogo();
+
+Output.PrintLogo();
 var configFile = args.FirstOrDefault();
 if (string.IsNullOrWhiteSpace(configFile))
 {
-    Log.Write("未指定配置文件");
+    Output.Print("未指定配置文件", OutputMessageTypeEnum.Error);
     return;
 }
-var builder = WebApplication.CreateBuilder();
-builder.Logging.ClearProviders();
-builder.Configuration.AddJsonFile(configFile);
-var appConfig = builder.Configuration.GetSection(nameof(AppConfig)).Get<AppConfig>()!;
-builder.Services.AddSingleton(appConfig);
-var certificate = CertificateExtend.LoadPem(appConfig.Certificate, appConfig.CertificateKey);
-builder.Services.AddSingleton(certificate);
-builder.WebHost.ConfigureKestrel(kso =>
-{
-    kso.ListenAnyIP(
-        appConfig.ServerPort,
-        lo =>
+
+await HostApp.StartWebAppAsync(
+    [],
+    async builder =>
+    {
+        builder.Logging.ClearProviders();
+        builder.Configuration.AddJsonFile(configFile);
+        var appConfig = builder.Configuration.GetSection(nameof(AppConfig)).Get<AppConfig>()!;
+        builder.Services.AddSingleton(appConfig);
+        var certificate = CertificateExtend.LoadPem(
+            appConfig.Certificate,
+            appConfig.CertificateKey
+        );
+        builder.Services.AddSingleton(certificate);
+        builder.WebHost.ConfigureKestrel(kso =>
         {
-            lo.UseHttps(certificate);
-        }
-    );
-});
-builder.Services.AddWebSockets(opt => { });
-builder.Services.AddSingleton<TunnelContext>();
-builder.Services.AddHostedService<HttpBackendService>();
-builder.Services.AddHostedService<HttpsBackendService>();
-builder.Services.AddSingleton<WebSocketHandleMiddleware>();
+            kso.ListenAnyIP(
+                appConfig.ServerPort,
+                lo =>
+                {
+                    lo.UseHttps(certificate);
+                }
+            );
+        });
+        builder.Services.AddWebSockets(_ => { });
+        builder.Services.AddSingleton<TunnelContext>();
+        builder.Services.AddHostedService<HttpBackendService>();
+        builder.Services.AddHostedService<HttpsBackendService>();
+        builder.Services.AddHostedService<StartInfoBackgroundService>();
+        builder.Services.AddSingleton<WebSocketHandleMiddleware>();
 
-#region ISocketHandle
+        #region ISocketHandle
 
-builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandle_Http>("Http");
-builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandle_Https>("Https");
-builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandle_TcpUdp>("TcpUdp");
+        builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandleHttp>("Http");
+        builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandleHttps>("Https");
+        builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandleTcpUdp>("TcpUdp");
 
-#endregion ISocketHandle
+        #endregion ISocketHandle
 
-#region ITunnelTypeHandle
+        #region ITunnelTypeHandle
 
-builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_Web>(
-    nameof(TunnelTypeEnum.Web)
+        builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandleWeb>(
+            nameof(TunnelTypeEnum.Web)
+        );
+        builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandleTcpUdp>(
+            nameof(TunnelTypeEnum.Tcp)
+        );
+        builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandleTcpUdp>(
+            nameof(TunnelTypeEnum.Udp)
+        );
+
+        #endregion ITunnelTypeHandle
+
+        await Task.CompletedTask;
+    },
+    async app =>
+    {
+        app.UseWebSockets();
+        app.UseMiddleware<WebSocketHandleMiddleware>();
+        await Task.CompletedTask;
+    }
 );
-builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_TcpUdp>(
-    nameof(TunnelTypeEnum.Tcp)
-);
-builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandle_TcpUdp>(
-    nameof(TunnelTypeEnum.Udp)
-);
-
-#endregion ITunnelTypeHandle
-
-var app = builder.Build();
-GlobalStaticConfig.ServiceProvider = app.Services;
-app.UseWebSockets();
-app.UseMiddleware<WebSocketHandleMiddleware>();
-
-Log.Write($"服务端连接端口：{appConfig.ServerPort}", LogType.Important);
-Log.Write($"HTTP端口：{appConfig.HttpPort}", LogType.Important);
-Log.Write($"HTTPS端口：{appConfig.HttpsPort}", LogType.Important);
-Log.Write("服务端已启动...", LogType.Success);
-await app.RunAsync();

@@ -9,11 +9,7 @@ public class TunnelContext
 
     public TunnelModel? GetTunnel(string key)
     {
-        if (_tunnels.TryGetValue(key, out var t))
-        {
-            return t;
-        }
-        return null;
+        return _tunnels.TryGetValue(key, out var t) ? t : null;
     }
 
     public bool AddTunnel(TunnelModel tunnel)
@@ -25,7 +21,7 @@ public class TunnelContext
     {
         if (_tunnels.TryGetValue(key, out var tunnel))
         {
-            _tunnels.Remove(key, out var _);
+            _tunnels.Remove(key, out _);
             await tunnel.CloseAsync();
         }
     }

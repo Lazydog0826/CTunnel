@@ -18,7 +18,7 @@ public static class SocketListen
         socket.Listen();
         TaskExtend.NewTask(async () =>
         {
-            while (true)
+            while (socket.Connected)
             {
                 var newConnect = await socket.AcceptAsync();
                 TaskExtend.NewTask(
