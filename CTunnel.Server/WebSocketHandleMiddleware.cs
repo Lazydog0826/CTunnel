@@ -91,6 +91,10 @@ public class WebSocketHandleMiddleware(
                 );
             await tunnelTypeHandle.HandleAsync(newTunnel);
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
         finally
         {
             if (newTunnel.IsAdd)

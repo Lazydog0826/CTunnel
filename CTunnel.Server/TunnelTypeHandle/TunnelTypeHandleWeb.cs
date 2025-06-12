@@ -25,11 +25,11 @@ public class TunnelTypeHandleWeb(TunnelContext tunnelContext) : ITunnelTypeHandl
                     memory.Memory,
                     tunnel.CancellationTokenSource.Token
                 );
-                await ms.WriteAsync(memory.Memory[..res.Count]);
+                await ms.WriteAsync(memory.Memory);
                 if (res.EndOfMessage)
                 {
                     ms.Seek(0, SeekOrigin.Begin);
-                    if (Enum.IsDefined(typeof(MessageTypeEnum), ms.GetMemory()[..1]))
+                    if (Enum.IsDefined(typeof(MessageTypeEnum), ms.GetMemory().Span[0]))
                     {
                         var requestId = Encoding.UTF8.GetString(ms.GetMemory()[1..37].Span);
                         var ri = tunnel.GetRequestItem(requestId);

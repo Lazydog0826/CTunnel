@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System.Net.Sockets;
+using System.Text;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
@@ -53,6 +54,8 @@ public static class SocketHandleWeb
 
         async Task ForwardToTunnelAsync(Memory<byte> temMemory)
         {
+            Console.WriteLine("转发了");
+            Console.WriteLine(Encoding.UTF8.GetString(temMemory.Span));
             await tunnel.WebSocket.ForwardAsync(
                 MessageTypeEnum.Forward,
                 requestItem.RequestId.ToBytes(),
