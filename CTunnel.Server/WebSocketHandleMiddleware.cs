@@ -8,96 +8,95 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 
-namespace CTunnel.Server
+namespace CTunnel.Server;
+
+public class WebSocketHandleMiddleware(
+    RequestDelegate next,
+    AppConfig _appConfig,
+    TunnelContext tunnelContext
+)
 {
-    public class WebSocketHandleMiddleware(
-        RequestDelegate next,
-        AppConfig _appConfig,
-        TunnelContext tunnelContext
-    )
+    public async Task Invoke(HttpContext httpContext)
     {
-        public async Task Invoke(HttpContext httpContext)
+        if (httpContext.WebSockets.IsWebSocketRequest)
         {
-            if (httpContext.WebSockets.IsWebSocketRequest)
-            {
-                var webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
-                var cancellationTokenSource = new CancellationTokenSource();
-                TaskExtend.NewTask(
-                    async () =>
-                    {
-                        await HandleAsync(webSocket, httpContext.Request.Headers);
-                        await webSocket.TryCloseAsync();
-                        await cancellationTokenSource.CancelAsync();
-                    },
-                    async ex =>
-                    {
-                        await webSocket.TryCloseAsync();
-                        await cancellationTokenSource.CancelAsync();
-                        Log.Write(ex.Message, LogType.Error);
-                    }
-                );
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationTokenSource.Token);
-            }
-            else
-            {
-                await next(httpContext);
-                httpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            }
+            var webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
+            var cancellationTokenSource = new CancellationTokenSource();
+            TaskExtend.NewTask(
+                async () =>
+                {
+                    await HandleAsync(webSocket, httpContext.Request.Headers);
+                    await webSocket.TryCloseAsync();
+                    await cancellationTokenSource.CancelAsync();
+                },
+                async ex =>
+                {
+                    await webSocket.TryCloseAsync();
+                    await cancellationTokenSource.CancelAsync();
+                    Log.Write(ex.Message, LogType.Error);
+                }
+            );
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationTokenSource.Token);
+        }
+        else
+        {
+            await next(httpContext);
+            httpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+        }
+    }
+
+    public async Task HandleAsync(WebSocket webSocket, IHeaderDictionary headers)
+    {
+        var slim = new SemaphoreSlim(1);
+        RegisterTunnel registerTunnelParam;
+        if (headers.TryGetValue("RegisterTunnelParam", out var registerTunnelParamJson))
+        {
+            registerTunnelParam = JsonConvert.DeserializeObject<RegisterTunnel>(
+                registerTunnelParamJson.ToString()
+            )!;
+        }
+        else
+        {
+            throw new Exception("必要的请求头不存在");
         }
 
-        public async Task HandleAsync(WebSocket webSocket, IHeaderDictionary headers)
+        // 检查Token
+        if (registerTunnelParam.Token != _appConfig.Token)
         {
-            var slim = new SemaphoreSlim(1);
-            RegisterTunnel registerTunnelParam;
-            if (headers.TryGetValue("RegisterTunnelParam", out var registerTunnelParamJson))
+            var result = new WebSocketResult { Success = false, Message = "Token无效" };
+            await webSocket.SendMessageAsync(result, slim);
+            throw new Exception(result.Message);
+        }
+
+        var newTimmel = new TunnelModel
+        {
+            DomainName = registerTunnelParam.DomainName,
+            Type = registerTunnelParam.Type,
+            ListenPort = registerTunnelParam.ListenPort,
+            WebSocket = webSocket,
+            Slim = slim,
+        };
+
+        try
+        {
+            // 根据隧道类型调用服务
+            var tunnelTypeHandle =
+                GlobalStaticConfig.ServiceProvider.GetRequiredKeyedService<ITunnelTypeHandle>(
+                    registerTunnelParam.Type.ToString()
+                );
+            await tunnelTypeHandle.HandleAsync(newTimmel);
+        }
+        finally
+        {
+            if (newTimmel.IsAdd)
             {
-                registerTunnelParam = JsonConvert.DeserializeObject<RegisterTunnel>(
-                    registerTunnelParamJson.ToString()
-                )!;
+                await tunnelContext.RemoveTunnelAsync(newTimmel.Key);
             }
             else
             {
-                throw new Exception("必要的请求头不存在");
+                await newTimmel.CloseAsync();
             }
-
-            // 检查Token
-            if (registerTunnelParam.Token != _appConfig.Token)
-            {
-                var result = new WebSocketResult { Success = false, Message = "Token无效" };
-                await webSocket.SendMessageAsync(result, slim);
-                throw new Exception(result.Message);
-            }
-
-            var newTimmel = new TunnelModel
-            {
-                DomainName = registerTunnelParam.DomainName,
-                Type = registerTunnelParam.Type,
-                ListenPort = registerTunnelParam.ListenPort,
-                WebSocket = webSocket,
-                Slim = slim
-            };
-
-            try
-            {
-                // 根据隧道类型调用服务
-                var tunnelTypeHandle =
-                    GlobalStaticConfig.ServiceProvider.GetRequiredKeyedService<ITunnelTypeHandle>(
-                        registerTunnelParam.Type.ToString()
-                    );
-                await tunnelTypeHandle.HandleAsync(newTimmel);
-            }
-            finally
-            {
-                if (newTimmel.IsAdd)
-                {
-                    await tunnelContext.RemoveTunnelAsync(newTimmel.Key);
-                }
-                else
-                {
-                    await newTimmel.CloseAsync();
-                }
-                Log.Write("连接已断开", LogType.Error, newTimmel.Key);
-            }
+            Log.Write("连接已断开", LogType.Error, newTimmel.Key);
         }
     }
 }

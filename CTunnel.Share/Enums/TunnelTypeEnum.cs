@@ -1,9 +1,8 @@
-﻿namespace CTunnel.Share.Enums
+﻿namespace CTunnel.Share.Enums;
+
+public enum TunnelTypeEnum
 {
-    public enum TunnelTypeEnum
-    {
-        Web = 0,
-        Tcp = 1,
-        Udp = 2
-    }
+    Web = 0,
+    Tcp = 1,
+    Udp = 2,
 }

@@ -1,8 +1,7 @@
-﻿namespace CTunnel.Share.Enums
+﻿namespace CTunnel.Share.Enums;
+
+public enum MessageTypeEnum : byte
 {
-    public enum MessageTypeEnum : byte
-    {
-        Forward = 1,
-        CloseForward = 2
-    }
+    Forward = 1,
+    CloseForward = 2,
 }

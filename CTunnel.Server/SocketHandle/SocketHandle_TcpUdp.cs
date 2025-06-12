@@ -4,56 +4,55 @@ using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
 
-namespace CTunnel.Server.SocketHandle
+namespace CTunnel.Server.SocketHandle;
+
+public class SocketHandle_TcpUdp(TunnelContext tunnelContext) : ISocketHandle
 {
-    public class SocketHandle_TcpUdp(TunnelContext tunnelContext) : ISocketHandle
+    public async Task HandleAsync(Socket socket, int port)
     {
-        public async Task HandleAsync(Socket socket, int port)
-        {
-            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-            var socketStream = await socket.GetStreamAsync(false, true, string.Empty);
+        socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+        var socketStream = await socket.GetStreamAsync(false, true, string.Empty);
 
-            await BytesExpand.UseBufferAsync(
-                GlobalStaticConfig.BufferSize,
-                async buffer =>
+        await BytesExpand.UseBufferAsync(
+            GlobalStaticConfig.BufferSize,
+            async buffer =>
+            {
+                var count = 0;
+                var requestItem = new RequestItem()
                 {
-                    var count = 0;
-                    var requestItem = new RequestItem()
-                    {
-                        RequestId = Guid.NewGuid().ToString(),
-                        TargetSocket = socket,
-                        TargetSocketStream = socketStream
-                    };
+                    RequestId = Guid.NewGuid().ToString(),
+                    TargetSocket = socket,
+                    TargetSocketStream = socketStream,
+                };
 
-                    var tunnel = tunnelContext.GetTunnel(port.ToString());
-                    if (tunnel == null)
-                        return;
-                    tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
-                    try
+                var tunnel = tunnelContext.GetTunnel(port.ToString());
+                if (tunnel == null)
+                    return;
+                tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
+                try
+                {
+                    async Task ForwardToTunnelAsync()
                     {
-                        async Task ForwardToTunnelAsync()
-                        {
-                            await tunnel.WebSocket.ForwardAsync(
-                                MessageTypeEnum.Forward,
-                                requestItem.RequestId,
-                                buffer,
-                                0,
-                                count,
-                                tunnel.Slim
-                            );
-                        }
-                        await ForwardToTunnelAsync();
-                        while ((count = await socketStream.ReadAsync(buffer)) != 0)
-                        {
-                            await ForwardToTunnelAsync();
-                        }
+                        await tunnel.WebSocket.ForwardAsync(
+                            MessageTypeEnum.Forward,
+                            requestItem.RequestId,
+                            buffer,
+                            0,
+                            count,
+                            tunnel.Slim
+                        );
                     }
-                    finally
+                    await ForwardToTunnelAsync();
+                    while ((count = await socketStream.ReadAsync(buffer)) != 0)
                     {
-                        await requestItem.CloseAsync(tunnel.ConcurrentDictionary);
+                        await ForwardToTunnelAsync();
                     }
                 }
-            );
-        }
+                finally
+                {
+                    await requestItem.CloseAsync(tunnel.ConcurrentDictionary);
+                }
+            }
+        );
     }
 }
