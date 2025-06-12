@@ -12,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MiniComp.Core.App;
+using Newtonsoft.Json;
 
 Console.CancelKeyPress += (_, _) =>
 {
@@ -30,8 +31,13 @@ await HostApp.StartWebAppAsync(
     async builder =>
     {
         builder.Logging.ClearProviders();
-        builder.Configuration.AddJsonFile(configFile);
-        var appConfig = builder.Configuration.GetSection(nameof(AppConfig)).Get<AppConfig>()!;
+        var configJson = File.ReadAllText(configFile);
+        var appConfig = JsonConvert.DeserializeObject<AppConfig>(configJson);
+        if (appConfig == null)
+        {
+            Output.Print("配置文件有误", OutputMessageTypeEnum.Error);
+            Environment.Exit(0);
+        }
         builder.Services.AddSingleton(appConfig);
         var certificate = CertificateExtend.LoadPem(
             appConfig.Certificate,

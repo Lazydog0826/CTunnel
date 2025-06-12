@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using CTunnel.Server.SocketHandle;
+using CTunnel.Share;
 using CTunnel.Share.Expand;
 
 namespace CTunnel.Server;
@@ -18,7 +19,7 @@ public static class SocketListen
         socket.Listen();
         TaskExtend.NewTask(async () =>
         {
-            while (socket.Connected)
+            while (true)
             {
                 var newConnect = await socket.AcceptAsync();
                 TaskExtend.NewTask(
@@ -27,12 +28,14 @@ public static class SocketListen
                         await socketHandle.HandleAsync(newConnect, port);
                         await newConnect.TryCloseAsync();
                     },
-                    async _ =>
+                    async ex =>
                     {
+                        Output.Print(ex.Message, OutputMessageTypeEnum.Error);
                         await newConnect.TryCloseAsync();
                     }
                 );
             }
+            // ReSharper disable once FunctionNeverReturns
         });
         return socket;
     }

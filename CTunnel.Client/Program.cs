@@ -1,89 +1,61 @@
-﻿using System.CommandLine;
-using System.CommandLine.Builder;
-using System.CommandLine.Parsing;
-using CTunnel.Client;
+﻿using CTunnel.Client;
 using CTunnel.Client.MessageHandle;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MiniComp.Core.App;
+using Newtonsoft.Json;
 
 Console.CancelKeyPress += (_, _) =>
 {
     Environment.Exit(0);
 };
+var configFile = args.FirstOrDefault();
+if (string.IsNullOrWhiteSpace(configFile))
+{
+    Output.Print("未指定配置文件", OutputMessageTypeEnum.Error);
+    return;
+}
 
-var rootCommand = new RootCommand();
-
-var serverOption = new Option<string>("--server", "服务端");
-rootCommand.AddOption(serverOption);
-var tokenOption = new Option<string>("--token", "Token");
-rootCommand.AddOption(tokenOption);
-var domainNameOption = new Option<string>("--domain", "域名");
-rootCommand.AddOption(domainNameOption);
-var listenPortOption = new Option<int>("--port", "端口，如果是Web服务则不需要端口");
-rootCommand.AddOption(listenPortOption);
-var typeOption = new Option<string>("--type", "隧道类型，可选值：Web，Tcp，Udp");
-rootCommand.AddOption(typeOption);
-var targetOption = new Option<string>("--target", "转发的目标");
-rootCommand.AddOption(targetOption);
-
-rootCommand.SetHandler(
-    async (server, token, domain, port, type, target) =>
+await HostApp.StartConsoleAppAsync(
+    args,
+    async builder =>
     {
-        Log.WriteLogo();
-        var builder = Host.CreateDefaultBuilder();
-        builder.ConfigureLogging(logging =>
-        {
-            logging.ClearProviders();
-        });
-        builder.UseConsoleLifetime();
-        builder.ConfigureServices(services =>
-        {
-            services.AddKeyedSingleton<IMessageHandle, MessageHandle_Forward>(
-                nameof(MessageTypeEnum.Forward)
-            );
-            services.AddKeyedSingleton<IMessageHandle, MessageHandle_CloseForward>(
-                nameof(MessageTypeEnum.CloseForward)
-            );
-            var config = new AppConfig()
+        builder.ConfigureLogging(
+            (_, logging) =>
             {
-                Token = token,
-                DomainName = domain,
-                Port = port,
-                Server = new UriBuilder(server),
-                Target = new UriBuilder(target),
-                Type = (TunnelTypeEnum)Enum.Parse(typeof(TunnelTypeEnum), type)
-            };
-            services.AddSingleton(config);
-            services.AddHostedService<MainBackgroundService>();
-        });
-        var app = builder.Build();
-        GlobalStaticConfig.ServiceProvider = app.Services;
-        await app.RunAsync();
+                logging.ClearProviders();
+            }
+        );
+        builder.ConfigureServices(
+            (_, services) =>
+            {
+                services.AddKeyedSingleton<IMessageHandle, MessageHandleForward>(
+                    nameof(MessageTypeEnum.Forward)
+                );
+                services.AddKeyedSingleton<IMessageHandle, MessageHandleCloseForward>(
+                    nameof(MessageTypeEnum.CloseForward)
+                );
+                services.AddHostedService<MainBackgroundService>();
+                var configJson = File.ReadAllText(configFile);
+                var appConfig = JsonConvert.DeserializeObject<AppConfig>(configJson);
+                if (appConfig == null)
+                {
+                    Output.Print("配置文件有误", OutputMessageTypeEnum.Error);
+                    Environment.Exit(0);
+                }
+                appConfig.Server = new UriBuilder(appConfig.ServerUrl);
+                appConfig.Target = new UriBuilder(appConfig.TargetUrl);
+                services.AddSingleton(appConfig);
+            }
+        );
+        await Task.CompletedTask;
     },
-    serverOption,
-    tokenOption,
-    domainNameOption,
-    listenPortOption,
-    typeOption,
-    targetOption
-);
-var commandLineBuilder = new CommandLineBuilder(rootCommand);
-commandLineBuilder.AddMiddleware(
-    async (context, next) =>
+    async app =>
     {
-        try
-        {
-            await next(context);
-        }
-        catch (Exception ex)
-        {
-            Log.Write(ex.Message, LogType.Error);
-        }
+        await Task.CompletedTask;
     }
 );
-commandLineBuilder.UseDefaults();
-var parser = commandLineBuilder.Build();
-return await parser.InvokeAsync(args);

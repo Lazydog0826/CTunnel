@@ -12,8 +12,11 @@ public static class CertificateExtend
     /// <returns></returns>
     public static X509Certificate2 LoadPem(string pem, string key)
     {
-        var certPem = File.ReadAllText(pem);
-        var keyPem = File.ReadAllText(key);
-        return X509Certificate2.CreateFromPem(certPem, keyPem);
+        var password = Guid.NewGuid().ToString("N");
+        var x509Certificate2 = X509Certificate2.CreateFromPemFile(pem, key);
+        return X509CertificateLoader.LoadPkcs12(
+            x509Certificate2.Export(X509ContentType.Pfx, password),
+            password
+        );
     }
 }

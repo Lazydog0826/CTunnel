@@ -1,5 +1,4 @@
-﻿using System.Net;
-using System.Net.WebSockets;
+﻿using System.Net.WebSockets;
 using CTunnel.Server.TunnelTypeHandle;
 using CTunnel.Share;
 using CTunnel.Share.Expand;
@@ -46,7 +45,6 @@ public class WebSocketHandleMiddleware(
         else
         {
             await next(httpContext);
-            httpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
         }
     }
 

@@ -1,8 +1,9 @@
 ﻿using System.Net.WebSockets;
+using Microsoft.IO;
 
 namespace CTunnel.Client.MessageHandle;
 
 public interface IMessageHandle
 {
-    public Task HandleAsync(WebSocket webSocket, byte[] bytes, int bytesCount);
+    public Task HandleAsync(WebSocket webSocket, RecyclableMemoryStream stream);
 }

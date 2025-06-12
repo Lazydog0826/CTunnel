@@ -41,20 +41,15 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
                 if (res.EndOfMessage)
                 {
                     ms.Seek(0, SeekOrigin.Begin);
-                    await using var decompressStream = await ms.GetMemory().DecompressAsync();
-                    ms.Reset();
-                    if (Enum.IsDefined(typeof(MessageTypeEnum), decompressStream.GetMemory()[..1]))
+
+                    if (Enum.IsDefined(typeof(MessageTypeEnum), ms.GetMemory()[..1]))
                     {
-                        var requestId = Encoding.UTF8.GetString(
-                            decompressStream.GetMemory()[1..37].Span
-                        );
+                        var requestId = Encoding.UTF8.GetString(ms.GetMemory()[1..37].Span);
                         var ri = tunnel.GetRequestItem(requestId);
                         if (ri != null)
                         {
                             // 转发给访问者
-                            await ri.TargetSocketStream.WriteAsync(
-                                decompressStream.GetMemory()[37..]
-                            );
+                            await ri.TargetSocketStream.WriteAsync(ms.GetMemory()[37..]);
                         }
                         else
                         {
@@ -67,6 +62,7 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
                             );
                         }
                     }
+                    ms.Reset();
                 }
             }
         }

@@ -1,5 +1,4 @@
-﻿using System.Buffers;
-using System.Net.Security;
+﻿using System.Net.Security;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Security.Authentication;
@@ -9,7 +8,6 @@ using System.Text.RegularExpressions;
 using CTunnel.Share.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using MiniComp.Core.App;
-using Newtonsoft.Json;
 
 namespace CTunnel.Share.Expand;
 
@@ -94,8 +92,9 @@ public static partial class SocketExtend
                     await ssl.AuthenticateAsClientAsync(targetHost);
                 }
             }
-            catch (AuthenticationException)
+            catch (AuthenticationException ex)
             {
+                Output.Print(ex.Message, OutputMessageTypeEnum.Error);
                 await socket.TryCloseAsync();
                 throw;
             }
@@ -103,66 +102,6 @@ public static partial class SocketExtend
             return ssl;
         }
         return stream;
-    }
-
-    /// <summary>
-    /// 接收消息
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="webSocket"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    public static async Task<T> ReadMessageAsync<T>(
-        this WebSocket webSocket,
-        CancellationToken cancellationToken
-    )
-    {
-        // 源Stream
-        await using var sourceStream = GlobalStaticConfig.MsManager.GetStream();
-        using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-        while (true)
-        {
-            var receiveRes = await webSocket.ReceiveAsync(memory.Memory, cancellationToken);
-            await sourceStream.WriteAsync(memory.Memory[..receiveRes.Count], cancellationToken);
-            if (receiveRes.EndOfMessage)
-                break;
-        }
-        sourceStream.Seek(0, SeekOrigin.Begin);
-        // 解压缩后的Stream
-        await using var decompressStream = await sourceStream.GetMemory().DecompressAsync();
-        return decompressStream.GetMemory().ConvertModel<T>();
-    }
-
-    /// <summary>
-    /// 发送消息
-    /// </summary>
-    /// <param name="webSocket"></param>
-    /// <param name="obj"></param>
-    /// <param name="slim"></param>
-    /// <returns></returns>
-    public static async Task SendMessageAsync(
-        this WebSocket webSocket,
-        object obj,
-        SemaphoreSlim slim
-    )
-    {
-        await slim.WaitAsync();
-        try
-        {
-            var json = JsonConvert.SerializeObject(obj);
-            var bytes = Encoding.UTF8.GetBytes(json);
-            await using var compressStream = await bytes.AsMemory(0, bytes.Length).CompressAsync();
-            await webSocket.SendAsync(
-                compressStream.GetMemory(),
-                WebSocketMessageType.Binary,
-                true,
-                CancellationToken.None
-            );
-        }
-        finally
-        {
-            slim.Release();
-        }
     }
 
     /// <summary>
@@ -190,9 +129,8 @@ public static partial class SocketExtend
             ms.Write(requestId.Span);
             ms.Write(bytes.Span);
             ms.Seek(0, SeekOrigin.Begin);
-            await using var compressStream = await ms.GetMemory().CompressAsync();
             await webSocket.SendAsync(
-                compressStream.GetMemory(),
+                ms.GetMemory(),
                 WebSocketMessageType.Binary,
                 true,
                 CancellationToken.None

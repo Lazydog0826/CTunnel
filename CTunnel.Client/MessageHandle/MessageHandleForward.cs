@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Buffers;
+using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
@@ -6,17 +7,26 @@ using CTunnel.Share;
 using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
+using Microsoft.IO;
 
 namespace CTunnel.Client.MessageHandle;
 
-public class MessageHandle_Forward(AppConfig appConfig) : IMessageHandle
+public class MessageHandleForward(AppConfig appConfig) : IMessageHandle
 {
-    public async Task HandleAsync(WebSocket webSocket, byte[] bytes, int bytesCount)
+    public async Task HandleAsync(WebSocket webSocket, RecyclableMemoryStream stream)
     {
-        var requestId = Encoding.UTF8.GetString(bytes.AsSpan(1, 36));
+        var requestId = Encoding.UTF8.GetString(stream.GetMemory()[1..37].Span);
         if (appConfig.ConcurrentDictionary.TryGetValue(requestId, out var ri2))
         {
-            await ri2.TargetSocketStream.WriteAsync(bytes.AsMemory(37, bytesCount - 37));
+            try
+            {
+                await ri2.TargetSocketStream.WriteAsync(stream.GetMemory()[37..]);
+            }
+            catch (Exception ex)
+            {
+                Output.Print(ex.Message, OutputMessageTypeEnum.Error);
+                await ri2.CloseAsync(appConfig.ConcurrentDictionary);
+            }
         }
         else
         {
@@ -41,49 +51,36 @@ public class MessageHandle_Forward(AppConfig appConfig) : IMessageHandle
                     true
                 );
                 ri.TargetSocketStream = await ri.TargetSocket.GetStreamAsync(
-                    TlsExtend.IsNeedTls(appConfig.Target),
+                    appConfig.Target.IsNeedTls(),
                     false,
                     appConfig.Target.Host
                 );
                 appConfig.ConcurrentDictionary.TryAdd(requestId, ri);
-                await ri.TargetSocketStream.WriteAsync(bytes.AsMemory(37, bytesCount - 37));
+                await ri.TargetSocketStream.WriteAsync(stream.GetMemory()[37..]);
             }
-            catch
+            catch (Exception ex)
             {
+                Output.Print(ex.Message, OutputMessageTypeEnum.Error);
                 await ri.CloseAsync(appConfig.ConcurrentDictionary);
-                throw;
             }
 
             TaskExtend.NewTask(
                 async () =>
                 {
-                    await BytesExpand.UseBufferAsync(
-                        GlobalStaticConfig.BufferSize,
-                        async buffer =>
-                        {
-                            int count;
-                            while (
-                                (
-                                    count = await ri.TargetSocketStream.ReadAsync(
-                                        new Memory<byte>(buffer)
-                                    )
-                                ) != 0
-                            )
-                            {
-                                await webSocket.ForwardAsync(
-                                    MessageTypeEnum.Forward,
-                                    requestId,
-                                    buffer,
-                                    0,
-                                    count,
-                                    appConfig.Slim
-                                );
-                            }
-                        }
-                    );
+                    using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+                    while (await ri.TargetSocketStream.ReadAsync(memory.Memory) != 0)
+                    {
+                        await webSocket.ForwardAsync(
+                            MessageTypeEnum.Forward,
+                            requestId.ToBytes(),
+                            memory.Memory,
+                            appConfig.Slim
+                        );
+                    }
                 },
-                async _ =>
+                async ex =>
                 {
+                    Output.Print(ex.Message, OutputMessageTypeEnum.Error);
                     await ri.CloseAsync(appConfig.ConcurrentDictionary);
                 }
             );
