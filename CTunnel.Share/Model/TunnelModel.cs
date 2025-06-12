@@ -51,7 +51,7 @@ public class TunnelModel
     /// <summary>
     /// 客户端请求监听的连接
     /// </summary>
-    public Socket ListenSocket { get; set; } = null!;
+    public Socket? ListenSocket { get; set; }
 
     /// <summary>
     /// 信号量，阻止发送消息并发

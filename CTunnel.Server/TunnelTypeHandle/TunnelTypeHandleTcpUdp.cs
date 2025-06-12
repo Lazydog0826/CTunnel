@@ -23,7 +23,7 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
             var socketHandle = HostApp.RootServiceProvider.GetRequiredKeyedService<ISocketHandle>(
                 "TcpUdp"
             );
-            SocketListen.CreateSocketListen(
+            tunnel.ListenSocket = SocketListen.CreateSocketListen(
                 tunnel.Type.ToProtocolType(),
                 tunnel.ListenPort,
                 socketHandle

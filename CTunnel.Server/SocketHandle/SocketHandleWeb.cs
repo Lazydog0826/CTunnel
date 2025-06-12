@@ -13,11 +13,8 @@ public static class SocketHandleWeb
     {
         socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
         var socketStream = await socket.GetStreamAsync(isHttps, true, string.Empty);
-
-        using var mee = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-
-        var hos = string.Empty;
-
+        using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+        _ = await socketStream.ReadAsync(memory.Memory);
         var requestItem = new RequestItem()
         {
             RequestId = Guid.NewGuid().ToString(),
@@ -26,7 +23,7 @@ public static class SocketHandleWeb
         };
 
         // 解析HOST
-        (host, count) = await socketStream.ParseWebRequestAsync(buffer);
+        var host = memory.Memory.ParseWebRequest();
 
         // 根据HOST获取隧道
         var tunnel = tunnelContext.GetTunnel(host);
@@ -38,28 +35,30 @@ public static class SocketHandleWeb
             return;
         }
         tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
+
         try
         {
-            async Task ForwardToTunnelAsync()
+            await ForwardToTunnelAsync(memory.Memory);
+            while (await socketStream.ReadAsync(memory.Memory) != 0)
             {
-                await tunnel.WebSocket.ForwardAsync(
-                    MessageTypeEnum.Forward,
-                    requestItem.RequestId,
-                    buffer,
-                    0,
-                    count,
-                    tunnel.Slim
-                );
-            }
-            await ForwardToTunnelAsync();
-            while ((count = await socketStream.ReadAsync(buffer)) != 0)
-            {
-                await ForwardToTunnelAsync();
+                await ForwardToTunnelAsync(memory.Memory);
             }
         }
         finally
         {
             await requestItem.CloseAsync(tunnel.ConcurrentDictionary);
+        }
+
+        return;
+
+        async Task ForwardToTunnelAsync(Memory<byte> temMemory)
+        {
+            await tunnel.WebSocket.ForwardAsync(
+                MessageTypeEnum.Forward,
+                requestItem.RequestId.ToBytes(),
+                temMemory,
+                tunnel.Slim
+            );
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System.Buffers;
+using System.Net.Sockets;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
@@ -12,47 +13,41 @@ public class SocketHandleTcpUdp(TunnelContext tunnelContext) : ISocketHandle
     {
         socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
         var socketStream = await socket.GetStreamAsync(false, true, string.Empty);
-
-        await BytesExpand.UseBufferAsync(
-            GlobalStaticConfig.BufferSize,
-            async buffer =>
+        using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+        _ = await socketStream.ReadAsync(memory.Memory);
+        var requestItem = new RequestItem()
+        {
+            RequestId = Guid.NewGuid().ToString(),
+            TargetSocket = socket,
+            TargetSocketStream = socketStream,
+        };
+        var tunnel = tunnelContext.GetTunnel(port.ToString());
+        if (tunnel == null)
+            return;
+        tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
+        try
+        {
+            await ForwardToTunnelAsync(memory.Memory);
+            while (await socketStream.ReadAsync(memory.Memory) != 0)
             {
-                var count = 0;
-                var requestItem = new RequestItem()
-                {
-                    RequestId = Guid.NewGuid().ToString(),
-                    TargetSocket = socket,
-                    TargetSocketStream = socketStream,
-                };
-
-                var tunnel = tunnelContext.GetTunnel(port.ToString());
-                if (tunnel == null)
-                    return;
-                tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
-                try
-                {
-                    async Task ForwardToTunnelAsync()
-                    {
-                        await tunnel.WebSocket.ForwardAsync(
-                            MessageTypeEnum.Forward,
-                            requestItem.RequestId,
-                            buffer,
-                            0,
-                            count,
-                            tunnel.Slim
-                        );
-                    }
-                    await ForwardToTunnelAsync();
-                    while ((count = await socketStream.ReadAsync(buffer)) != 0)
-                    {
-                        await ForwardToTunnelAsync();
-                    }
-                }
-                finally
-                {
-                    await requestItem.CloseAsync(tunnel.ConcurrentDictionary);
-                }
+                await ForwardToTunnelAsync(memory.Memory);
             }
-        );
+        }
+        finally
+        {
+            await requestItem.CloseAsync(tunnel.ConcurrentDictionary);
+        }
+
+        return;
+
+        async Task ForwardToTunnelAsync(Memory<byte> temMemory)
+        {
+            await tunnel.WebSocket.ForwardAsync(
+                MessageTypeEnum.Forward,
+                requestItem.RequestId.ToBytes(),
+                temMemory,
+                tunnel.Slim
+            );
+        }
     }
 }

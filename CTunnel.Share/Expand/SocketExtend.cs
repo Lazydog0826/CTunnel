@@ -207,13 +207,11 @@ public static partial class SocketExtend
     /// <summary>
     /// 解析WEB请求
     /// </summary>
-    /// <param name="stream"></param>
+    /// <param name="memory"></param>
     /// <returns></returns>
-    public static async Task<string> ParseWebRequestAsync(this Stream stream)
+    public static string ParseWebRequest(this Memory<byte> memory)
     {
-        await using var ms = GlobalStaticConfig.MsManager.GetStream();
-        await stream.CopyToAsync(ms);
-        var message = Encoding.UTF8.GetString(ms.GetMemory().Span);
+        var message = Encoding.UTF8.GetString(memory.Span);
         var hostRegex = HostRegex();
         var match = hostRegex.Match(message);
         if (string.IsNullOrWhiteSpace(match.Value))

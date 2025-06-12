@@ -13,20 +13,16 @@ public static class Output
         {
             OutputMessageTypeEnum.Info => ("lime", "INFO"),
             OutputMessageTypeEnum.Error => ("red", "ERROR"),
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(outputMessageType),
-                outputMessageType,
-                null
-            ),
+            _
+                => throw new ArgumentOutOfRangeException(
+                    nameof(outputMessageType),
+                    outputMessageType,
+                    null
+                ),
         };
         AnsiConsole.MarkupLine(
-            $"[grey]{DateTime.Now:yyyy-MM-dd HH:mm:ss}[/] [{color}]{type}[/] {msg}"
+            $"[grey]{DateTime.Now:yyyy-MM-dd HH:mm:ss}[/] [{color}]{type}[/] - {msg}"
         );
-    }
-
-    public static void PrintLogo()
-    {
-        AnsiConsole.Write(new FigletText("CTunnel").LeftJustified().Color(Color.Aqua));
     }
 }
 

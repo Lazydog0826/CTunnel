@@ -18,7 +18,6 @@ Console.CancelKeyPress += (_, _) =>
     Environment.Exit(0);
 };
 
-Output.PrintLogo();
 var configFile = args.FirstOrDefault();
 if (string.IsNullOrWhiteSpace(configFile))
 {
