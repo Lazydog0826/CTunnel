@@ -1,5 +1,5 @@
 {
-    "ServerUrl": "wss://127.0.0.1:8888",
+    "ServerUrl": "127.0.0.1:8888",
     "Token": "TOKEN_TEST",
     "DomainName": "172.20.10.4",
     "Port": 0,
