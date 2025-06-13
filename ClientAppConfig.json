@@ -4,5 +4,5 @@
     "DomainName": "172.20.10.4",
     "Port": 0,
     "Type": 0,
-    "TargetUrl": "http://127.0.0.1:9997"
+    "TargetUrl": "http://127.0.0.1:9999"
 }

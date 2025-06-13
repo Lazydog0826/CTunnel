@@ -33,12 +33,12 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
             using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize + 37);
             while (!tunnel.CancellationTokenSource.IsCancellationRequested)
             {
-                var res = await tunnel.WebSocket.ReceiveAsync(
+                var readCount = await tunnel.WebSocket.ReceiveAsync(
                     memory.Memory,
                     tunnel.CancellationTokenSource.Token
                 );
-                await ms.WriteAsync(memory.Memory[..res.Count]);
-                if (res.EndOfMessage)
+                await ms.WriteAsync(memory.Memory[..readCount.Count]);
+                if (readCount.EndOfMessage)
                 {
                     ms.Seek(0, SeekOrigin.Begin);
 
@@ -49,7 +49,7 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
                         if (ri != null)
                         {
                             // 转发给访问者
-                            await ri.TargetSocketStream.WriteAsync(ms.GetMemory()[37..]);
+                            await ri.TargetSocketStream.ShardWriteAsync(ms, 37);
                         }
                         else
                         {

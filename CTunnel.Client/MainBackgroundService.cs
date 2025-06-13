@@ -43,6 +43,11 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                     memory.Memory,
                     CancellationToken.None
                 );
+                if (readCount.MessageType == WebSocketMessageType.Close)
+                {
+                    Output.Print("服务端断开连接", OutputMessageTypeEnum.Error);
+                    Environment.Exit(0);
+                }
                 await ms.WriteAsync(memory.Memory[..readCount.Count], CancellationToken.None);
                 if (readCount.EndOfMessage)
                 {
