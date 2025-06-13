@@ -33,6 +33,7 @@ try
         {
             builder.Logging.ClearProviders();
             var configJson = File.ReadAllText(configFile);
+            Output.Print(configJson);
             var appConfig = JsonConvert.DeserializeObject<AppConfig>(configJson);
             if (appConfig == null)
             {

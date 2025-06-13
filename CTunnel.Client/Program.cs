@@ -42,6 +42,7 @@ try
                     );
                     services.AddHostedService<MainBackgroundService>();
                     var configJson = File.ReadAllText(configFile);
+                    Output.Print(configJson);
                     var appConfig = JsonConvert.DeserializeObject<AppConfig>(configJson);
                     if (appConfig == null)
                     {
