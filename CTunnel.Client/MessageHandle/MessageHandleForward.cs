@@ -20,10 +20,6 @@ public class MessageHandleForward(AppConfig appConfig) : IMessageHandle
         {
             try
             {
-                Console.WriteLine("发送2");
-                Console.WriteLine(
-                    Encoding.UTF8.GetString(stream.GetMemory()[37..(int)stream.Length].Span)
-                );
                 await ri2.TargetSocketStream.ShardWriteAsync(stream, 37);
             }
             catch (Exception ex)
@@ -60,10 +56,6 @@ public class MessageHandleForward(AppConfig appConfig) : IMessageHandle
                     appConfig.Target.Host
                 );
                 appConfig.ConcurrentDictionary.TryAdd(requestId, ri);
-                Console.WriteLine("发送1");
-                Console.WriteLine(
-                    Encoding.UTF8.GetString(stream.GetMemory()[37..(int)stream.Length].Span)
-                );
                 await ri.TargetSocketStream.ShardWriteAsync(stream, 37);
             }
             catch (Exception ex)
@@ -79,8 +71,6 @@ public class MessageHandleForward(AppConfig appConfig) : IMessageHandle
                     int readCount;
                     while ((readCount = await ri.TargetSocketStream.ReadAsync(memory.Memory)) != 0)
                     {
-                        Console.WriteLine("接受");
-                        Console.WriteLine(Encoding.UTF8.GetString(memory.Memory[..readCount].Span));
                         await webSocket.ForwardAsync(
                             MessageTypeEnum.Forward,
                             requestId.ToBytes(),

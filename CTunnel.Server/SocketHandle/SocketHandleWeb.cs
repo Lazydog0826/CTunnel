@@ -54,8 +54,6 @@ public static class SocketHandleWeb
 
         async Task ForwardToTunnelAsync(Memory<byte> temMemory)
         {
-            Console.WriteLine("转发了");
-            Console.WriteLine(Encoding.UTF8.GetString(temMemory.Span));
             await tunnel.WebSocket.ForwardAsync(
                 MessageTypeEnum.Forward,
                 requestItem.RequestId.ToBytes(),

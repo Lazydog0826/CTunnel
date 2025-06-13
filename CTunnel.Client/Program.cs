@@ -2,7 +2,6 @@
 using CTunnel.Client.MessageHandle;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

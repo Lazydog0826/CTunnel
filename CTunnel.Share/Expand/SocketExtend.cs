@@ -131,13 +131,19 @@ public static partial class SocketExtend
             await ms.WriteAsync(requestId);
             await ms.WriteAsync(bytes);
             ms.Seek(0, SeekOrigin.Begin);
-            var msCount = 1 + requestId.Length + bytes.Length;
-            await webSocket.SendAsync(
-                ms.GetMemory()[..msCount],
-                WebSocketMessageType.Binary,
-                true,
-                CancellationToken.None
-            );
+            using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+            var readCount = 0;
+            var totalCount = 0L;
+            while ((readCount = await ms.ReadAsync(memory.Memory)) != 0)
+            {
+                totalCount += readCount;
+                await webSocket.SendAsync(
+                    memory.Memory[..readCount],
+                    WebSocketMessageType.Binary,
+                    totalCount >= ms.Length,
+                    CancellationToken.None
+                );
+            }
         }
         finally
         {

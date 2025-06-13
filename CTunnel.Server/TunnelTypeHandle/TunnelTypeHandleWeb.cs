@@ -35,10 +35,6 @@ public class TunnelTypeHandleWeb(TunnelContext tunnelContext) : ITunnelTypeHandl
                         var ri = tunnel.GetRequestItem(requestId);
                         if (ri != null)
                         {
-                            Console.WriteLine("接受了");
-                            Console.WriteLine(
-                                Encoding.UTF8.GetString(ms.GetMemory()[37..(int)ms.Length].Span)
-                            );
                             await ri.TargetSocketStream.ShardWriteAsync(ms, 37);
                         }
                         else
