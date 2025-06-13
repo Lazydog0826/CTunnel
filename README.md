@@ -7,7 +7,7 @@
 ### 服务端
 
 ```sh
-./CTunnel.Server-linux-x64 AppConfig.json
+./CTunnel.Server AppConfig.json
 ```
 
 ```json
@@ -24,7 +24,7 @@
 ### 客户端
 
 ```sh
-./CTunnel.Client-win-x64.exe AppConfig.json
+./CTunnel.Client.exe AppConfig.json
 ```
 
 ```json
