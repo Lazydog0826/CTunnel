@@ -42,7 +42,7 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
                 {
                     ms.Seek(0, SeekOrigin.Begin);
 
-                    if (Enum.IsDefined(typeof(MessageTypeEnum), ms.GetMemory()[..1]))
+                    if (Enum.IsDefined(typeof(MessageTypeEnum), ms.GetMemory().Span[0]))
                     {
                         var requestId = Encoding.UTF8.GetString(ms.GetMemory()[1..37].Span);
                         var ri = tunnel.GetRequestItem(requestId);

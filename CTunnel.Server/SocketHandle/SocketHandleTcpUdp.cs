@@ -14,7 +14,6 @@ public class SocketHandleTcpUdp(TunnelContext tunnelContext) : ISocketHandle
         socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
         var socketStream = await socket.GetStreamAsync(false, true, string.Empty);
         using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-        var readCount = await socketStream.ReadAsync(memory.Memory);
         var requestItem = new RequestItem()
         {
             RequestId = Guid.NewGuid().ToString(),
@@ -27,7 +26,8 @@ public class SocketHandleTcpUdp(TunnelContext tunnelContext) : ISocketHandle
         tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
         try
         {
-            await ForwardToTunnelAsync(memory.Memory[..readCount]);
+            await ForwardToTunnelAsync(Memory<byte>.Empty);
+            int readCount;
             while ((readCount = await socketStream.ReadAsync(memory.Memory)) != 0)
             {
                 await ForwardToTunnelAsync(memory.Memory[..readCount]);
