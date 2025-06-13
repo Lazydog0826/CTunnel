@@ -1,4 +1,5 @@
-﻿using System.Net.Security;
+﻿using System.Buffers;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Security.Authentication;
@@ -7,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using CTunnel.Share.Enums;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IO;
 using MiniComp.Core.App;
 
 namespace CTunnel.Share.Expand;
@@ -126,11 +128,12 @@ public static partial class SocketExtend
         {
             await using var ms = GlobalStaticConfig.MsManager.GetStream();
             ms.Write([(byte)messageType]);
-            ms.Write(requestId.Span);
-            ms.Write(bytes.Span);
+            await ms.WriteAsync(requestId);
+            await ms.WriteAsync(bytes);
             ms.Seek(0, SeekOrigin.Begin);
+            var msCount = 1 + requestId.Length + bytes.Length;
             await webSocket.SendAsync(
-                ms.GetMemory(),
+                ms.GetMemory()[..msCount],
                 WebSocketMessageType.Binary,
                 true,
                 CancellationToken.None
@@ -165,4 +168,25 @@ public static partial class SocketExtend
 
     [GeneratedRegex(@"Host:(\s?)", RegexOptions.IgnoreCase, "zh-CN")]
     private static partial Regex HostReplaceRegex();
+
+    /// <summary>
+    /// 分片写入
+    /// </summary>
+    /// <param name="stream"></param>
+    /// <param name="stream2"></param>
+    /// <param name="start"></param>
+    public static async Task ShardWriteAsync(
+        this Stream stream,
+        RecyclableMemoryStream stream2,
+        int start
+    )
+    {
+        using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+        stream2.Seek(start, SeekOrigin.Begin);
+        int readCount;
+        while ((readCount = await stream2.ReadAsync(memory.Memory)) != 0)
+        {
+            await stream.WriteAsync(memory.Memory[..readCount]);
+        }
+    }
 }

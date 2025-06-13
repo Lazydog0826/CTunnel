@@ -21,8 +21,10 @@ public class MessageHandleForward(AppConfig appConfig) : IMessageHandle
             try
             {
                 Console.WriteLine("发送2");
-                Console.WriteLine(Encoding.UTF8.GetString(stream.GetMemory()[37..].Span));
-                await ri2.TargetSocketStream.WriteAsync(stream.GetMemory()[37..]);
+                Console.WriteLine(
+                    Encoding.UTF8.GetString(stream.GetMemory()[37..(int)stream.Length].Span)
+                );
+                await ri2.TargetSocketStream.ShardWriteAsync(stream, 37);
             }
             catch (Exception ex)
             {
@@ -47,11 +49,11 @@ public class MessageHandleForward(AppConfig appConfig) : IMessageHandle
                 await ri.TargetSocket.ConnectAsync(
                     new DnsEndPoint(appConfig.Target.Host, appConfig.Target.Port)
                 );
-                // ri.TargetSocket.SetSocketOption(
-                //     SocketOptionLevel.Socket,
-                //     SocketOptionName.KeepAlive,
-                //     true
-                // );
+                ri.TargetSocket.SetSocketOption(
+                    SocketOptionLevel.Socket,
+                    SocketOptionName.KeepAlive,
+                    true
+                );
                 ri.TargetSocketStream = await ri.TargetSocket.GetStreamAsync(
                     appConfig.Target.IsNeedTls(),
                     false,
@@ -59,8 +61,10 @@ public class MessageHandleForward(AppConfig appConfig) : IMessageHandle
                 );
                 appConfig.ConcurrentDictionary.TryAdd(requestId, ri);
                 Console.WriteLine("发送1");
-                Console.WriteLine(Encoding.UTF8.GetString(stream.GetMemory()[37..].Span));
-                await ri.TargetSocketStream.WriteAsync(stream.GetMemory()[37..]);
+                Console.WriteLine(
+                    Encoding.UTF8.GetString(stream.GetMemory()[37..(int)stream.Length].Span)
+                );
+                await ri.TargetSocketStream.ShardWriteAsync(stream, 37);
             }
             catch (Exception ex)
             {
@@ -72,14 +76,15 @@ public class MessageHandleForward(AppConfig appConfig) : IMessageHandle
                 async () =>
                 {
                     using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-                    while (await ri.TargetSocketStream.ReadAsync(memory.Memory) != 0)
+                    int readCount;
+                    while ((readCount = await ri.TargetSocketStream.ReadAsync(memory.Memory)) != 0)
                     {
                         Console.WriteLine("接受");
-                        Console.WriteLine(Encoding.UTF8.GetString(memory.Memory.Span));
+                        Console.WriteLine(Encoding.UTF8.GetString(memory.Memory[..readCount].Span));
                         await webSocket.ForwardAsync(
                             MessageTypeEnum.Forward,
                             requestId.ToBytes(),
-                            memory.Memory,
+                            memory.Memory[..readCount],
                             appConfig.Slim
                         );
                     }

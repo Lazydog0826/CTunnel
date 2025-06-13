@@ -21,12 +21,12 @@ public class TunnelTypeHandleWeb(TunnelContext tunnelContext) : ITunnelTypeHandl
             using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize + 37);
             while (!tunnel.CancellationTokenSource.IsCancellationRequested)
             {
-                var res = await tunnel.WebSocket.ReceiveAsync(
+                var readCount = await tunnel.WebSocket.ReceiveAsync(
                     memory.Memory,
                     tunnel.CancellationTokenSource.Token
                 );
-                await ms.WriteAsync(memory.Memory);
-                if (res.EndOfMessage)
+                await ms.WriteAsync(memory.Memory[..readCount.Count]);
+                if (readCount.EndOfMessage)
                 {
                     ms.Seek(0, SeekOrigin.Begin);
                     if (Enum.IsDefined(typeof(MessageTypeEnum), ms.GetMemory().Span[0]))
@@ -35,7 +35,11 @@ public class TunnelTypeHandleWeb(TunnelContext tunnelContext) : ITunnelTypeHandl
                         var ri = tunnel.GetRequestItem(requestId);
                         if (ri != null)
                         {
-                            await ri.TargetSocketStream.WriteAsync(ms.GetMemory()[37..]);
+                            Console.WriteLine("接受了");
+                            Console.WriteLine(
+                                Encoding.UTF8.GetString(ms.GetMemory()[37..(int)ms.Length].Span)
+                            );
+                            await ri.TargetSocketStream.ShardWriteAsync(ms, 37);
                         }
                         else
                         {

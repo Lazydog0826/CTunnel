@@ -15,7 +15,6 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Task.Delay(3000, stoppingToken);
         try
         {
             var timeoutToken = new CancellationTokenSource(GlobalStaticConfig.Timeout);
@@ -40,12 +39,15 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
 
             while (true)
             {
-                var res = await masterSocket.ReceiveAsync(memory.Memory, CancellationToken.None);
-                await ms.WriteAsync(memory.Memory[..res.Count], CancellationToken.None);
-                if (res.EndOfMessage)
+                var readCount = await masterSocket.ReceiveAsync(
+                    memory.Memory,
+                    CancellationToken.None
+                );
+                await ms.WriteAsync(memory.Memory[..readCount.Count], CancellationToken.None);
+                if (readCount.EndOfMessage)
                 {
                     ms.Seek(0, SeekOrigin.Begin);
-                    var messageTypeEnum = ms.GetMemory()[..1].Span[0];
+                    var messageTypeEnum = ms.GetMemory().Span[0];
                     if (Enum.IsDefined(typeof(MessageTypeEnum), messageTypeEnum))
                     {
                         var type = (MessageTypeEnum)messageTypeEnum;

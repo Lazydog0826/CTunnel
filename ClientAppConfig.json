@@ -1,7 +1,7 @@
 {
     "ServerUrl": "wss://127.0.0.1:8888",
     "Token": "TOKEN_TEST",
-    "DomainName": "192.168.1.102",
+    "DomainName": "172.20.10.4",
     "Port": 0,
     "Type": 0,
     "TargetUrl": "http://127.0.0.1:8899"
