@@ -87,7 +87,12 @@ public static partial class SocketExtend
                 if (isServer)
                 {
                     var x509 = HostApp.RootServiceProvider.GetRequiredService<X509Certificate2>();
-                    await ssl.AuthenticateAsServerAsync(x509, false, SslProtocols.Tls13, true);
+                    await ssl.AuthenticateAsServerAsync(
+                        x509,
+                        false,
+                        SslProtocols.Tls12 | SslProtocols.Tls13,
+                        true
+                    );
                 }
                 else
                 {
