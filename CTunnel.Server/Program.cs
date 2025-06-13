@@ -33,7 +33,7 @@ try
         {
             builder.Logging.ClearProviders();
             var configJson = File.ReadAllText(configFile);
-            Output.Print(configJson);
+            Output.PrintConfig(configJson);
             var appConfig = JsonConvert.DeserializeObject<AppConfig>(configJson);
             if (appConfig == null)
             {
@@ -61,7 +61,6 @@ try
             builder.Services.AddSingleton<TunnelContext>();
             builder.Services.AddHostedService<HttpBackendService>();
             builder.Services.AddHostedService<HttpsBackendService>();
-            builder.Services.AddHostedService<StartInfoBackgroundService>();
             builder.Services.AddSingleton<WebSocketHandleMiddleware>();
 
             #region ISocketHandle

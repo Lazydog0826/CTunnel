@@ -36,7 +36,6 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                 new Uri($"wss://{appConfig.Server.Host}:{appConfig.Server.Port}"),
                 timeoutToken.Token
             );
-            Output.Print("已连接");
             await using var ms = GlobalStaticConfig.MsManager.GetStream();
             using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
 

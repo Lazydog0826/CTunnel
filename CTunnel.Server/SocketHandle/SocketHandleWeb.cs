@@ -1,6 +1,5 @@
 ﻿using System.Buffers;
 using System.Net.Sockets;
-using System.Text;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
