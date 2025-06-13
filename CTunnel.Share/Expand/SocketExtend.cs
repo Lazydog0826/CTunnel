@@ -10,6 +10,7 @@ using CTunnel.Share.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IO;
 using MiniComp.Core.App;
+using MiniComp.Core.Extension;
 
 namespace CTunnel.Share.Expand;
 
@@ -137,7 +138,7 @@ public static partial class SocketExtend
             await ms.WriteAsync(bytes);
             ms.Seek(0, SeekOrigin.Begin);
             using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-            var readCount = 0;
+            int readCount;
             var totalCount = 0L;
             while ((readCount = await ms.ReadAsync(memory.Memory)) != 0)
             {
@@ -170,7 +171,7 @@ public static partial class SocketExtend
             return string.Empty;
         var replaceReg = HostReplaceRegex();
         var uriBuilder = new UriBuilder(replaceReg.Replace(match.Value, string.Empty));
-        var host = uriBuilder.Host;
+        var host = uriBuilder.Host.IsNullOrGivenValue(uriBuilder.Scheme);
         return host;
     }
 
