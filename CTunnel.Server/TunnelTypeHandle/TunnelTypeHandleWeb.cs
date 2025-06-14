@@ -19,11 +19,11 @@ public class TunnelTypeHandleWeb(TunnelContext tunnelContext) : ITunnelTypeHandl
             Output.Print($"{tunnel.Key} - 注册隧道成功");
             await using var ms = GlobalStaticConfig.MsManager.GetStream();
             using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize + 37);
-            while (!tunnel.CancellationTokenSource.IsCancellationRequested)
+            while (true)
             {
                 var readCount = await tunnel.WebSocket.ReceiveAsync(
                     memory.Memory,
-                    tunnel.CancellationTokenSource.Token
+                    CancellationToken.None
                 );
                 await ms.WriteAsync(memory.Memory[..readCount.Count]);
                 if (readCount.EndOfMessage)
@@ -35,7 +35,11 @@ public class TunnelTypeHandleWeb(TunnelContext tunnelContext) : ITunnelTypeHandl
                         var ri = tunnel.GetRequestItem(requestId);
                         if (ri != null)
                         {
-                            await ri.TargetSocketStream.ShardWriteAsync(ms, 37);
+                            await ri.TargetSocketStream.ShardWriteAsync(
+                                ms,
+                                37,
+                                ri.ForwardToTargetSlim
+                            );
                         }
                         else
                         {
@@ -43,7 +47,7 @@ public class TunnelTypeHandleWeb(TunnelContext tunnelContext) : ITunnelTypeHandl
                                 MessageTypeEnum.CloseForward,
                                 requestId.ToBytes(),
                                 Memory<byte>.Empty,
-                                tunnel.Slim
+                                tunnel.ForwardToClientSlim
                             );
                         }
                     }
@@ -51,9 +55,6 @@ public class TunnelTypeHandleWeb(TunnelContext tunnelContext) : ITunnelTypeHandl
                 }
             }
         }
-        else
-        {
-            throw new Exception("注册失败，域名重复");
-        }
+        throw new Exception("注册失败，域名重复");
     }
 }

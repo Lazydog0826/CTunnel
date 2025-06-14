@@ -52,7 +52,7 @@ public class AppConfig
     public ConcurrentDictionary<string, RequestItem> ConcurrentDictionary { get; set; } = [];
 
     /// <summary>
-    /// 信号（默认值初始化）
+    /// 转发到服务器限制
     /// </summary>
-    public SemaphoreSlim Slim { get; set; } = new(1);
+    public SemaphoreSlim ForwardToServerSlim { get; set; } = new(1);
 }

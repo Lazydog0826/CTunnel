@@ -20,7 +20,7 @@ public class MessageHandleForward(AppConfig appConfig) : IMessageHandle
         {
             try
             {
-                await ri2.TargetSocketStream.ShardWriteAsync(stream, 37);
+                await ri2.TargetSocketStream.ShardWriteAsync(stream, 37, ri2.ForwardToTargetSlim);
             }
             catch (Exception ex)
             {
@@ -56,7 +56,7 @@ public class MessageHandleForward(AppConfig appConfig) : IMessageHandle
                     appConfig.Target.Host
                 );
                 appConfig.ConcurrentDictionary.TryAdd(requestId, ri);
-                await ri.TargetSocketStream.ShardWriteAsync(stream, 37);
+                await ri.TargetSocketStream.ShardWriteAsync(stream, 37, ri.ForwardToTargetSlim);
             }
             catch (Exception ex)
             {
@@ -75,7 +75,7 @@ public class MessageHandleForward(AppConfig appConfig) : IMessageHandle
                             MessageTypeEnum.Forward,
                             requestId.ToBytes(),
                             memory.Memory[..readCount],
-                            appConfig.Slim
+                            appConfig.ForwardToServerSlim
                         );
                     }
                 },

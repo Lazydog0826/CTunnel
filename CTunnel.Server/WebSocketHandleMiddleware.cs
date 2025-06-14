@@ -21,26 +21,19 @@ public class WebSocketHandleMiddleware(
         if (httpContext.WebSockets.IsWebSocketRequest)
         {
             var webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
-            var cancellationTokenSource = new CancellationTokenSource();
             TaskExtend.NewTask(
                 async () =>
                 {
-                    await HandleAsync(
-                        webSocket,
-                        httpContext.Request.Headers,
-                        cancellationTokenSource
-                    );
+                    await HandleAsync(webSocket, httpContext.Request.Headers);
                     await webSocket.TryCloseAsync();
-                    await cancellationTokenSource.CancelAsync();
                 },
                 async ex =>
                 {
                     await webSocket.TryCloseAsync(ex.Message);
-                    await cancellationTokenSource.CancelAsync();
                     Output.Print(ex.Message, OutputMessageTypeEnum.Error);
                 }
             );
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationTokenSource.Token);
+            await Task.Delay(Timeout.InfiniteTimeSpan, httpContext.RequestAborted);
         }
         else
         {
@@ -48,11 +41,7 @@ public class WebSocketHandleMiddleware(
         }
     }
 
-    private async Task HandleAsync(
-        WebSocket webSocket,
-        IHeaderDictionary headers,
-        CancellationTokenSource cancellationToken
-    )
+    private async Task HandleAsync(WebSocket webSocket, IHeaderDictionary headers)
     {
         RegisterTunnel registerTunnelParam;
         if (headers.TryGetValue("RegisterTunnelParam", out var registerTunnelParamJson))
@@ -74,12 +63,10 @@ public class WebSocketHandleMiddleware(
 
         var newTunnel = new TunnelModel
         {
-            CancellationTokenSource = cancellationToken,
             DomainName = registerTunnelParam.DomainName,
             Type = registerTunnelParam.Type,
             ListenPort = registerTunnelParam.ListenPort,
             WebSocket = webSocket,
-            Slim = new SemaphoreSlim(1),
         };
 
         try

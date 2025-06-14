@@ -14,11 +14,6 @@ public class TunnelModel
     public string Key { get; set; } = string.Empty;
 
     /// <summary>
-    /// CancellationTokenSource
-    /// </summary>
-    public CancellationTokenSource CancellationTokenSource { get; set; } = null!;
-
-    /// <summary>
     /// 是否添加成功
     /// </summary>
     public bool IsAdd { get; set; }
@@ -56,7 +51,7 @@ public class TunnelModel
     /// <summary>
     /// 信号量，阻止发送消息并发
     /// </summary>
-    public SemaphoreSlim Slim { get; set; } = new(1);
+    public SemaphoreSlim ForwardToClientSlim { get; set; } = new(1);
 
     /// <summary>
     /// 关闭所有相关内容
@@ -65,7 +60,7 @@ public class TunnelModel
     public async Task CloseAsync()
     {
         await ListenSocket.TryCloseAsync();
-        Slim.Dispose();
+        ForwardToClientSlim.Dispose();
         foreach (var item in ConcurrentDictionary)
         {
             await item.Value.CloseAsync(ConcurrentDictionary);

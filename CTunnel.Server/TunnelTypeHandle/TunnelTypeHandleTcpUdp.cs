@@ -31,11 +31,11 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
             Output.Print($"{tunnel.Key} - 注册隧道成功");
             await using var ms = GlobalStaticConfig.MsManager.GetStream();
             using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize + 37);
-            while (!tunnel.CancellationTokenSource.IsCancellationRequested)
+            while (true)
             {
                 var readCount = await tunnel.WebSocket.ReceiveAsync(
                     memory.Memory,
-                    tunnel.CancellationTokenSource.Token
+                    CancellationToken.None
                 );
                 await ms.WriteAsync(memory.Memory[..readCount.Count]);
                 if (readCount.EndOfMessage)
@@ -49,7 +49,11 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
                         if (ri != null)
                         {
                             // 转发给访问者
-                            await ri.TargetSocketStream.ShardWriteAsync(ms, 37);
+                            await ri.TargetSocketStream.ShardWriteAsync(
+                                ms,
+                                37,
+                                ri.ForwardToTargetSlim
+                            );
                         }
                         else
                         {
@@ -58,7 +62,7 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
                                 MessageTypeEnum.CloseForward,
                                 requestId.ToBytes(),
                                 Memory<byte>.Empty,
-                                tunnel.Slim
+                                tunnel.ForwardToClientSlim
                             );
                         }
                     }
@@ -66,9 +70,6 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
                 }
             }
         }
-        else
-        {
-            throw new Exception("注册失败，端口重复");
-        }
+        throw new Exception("注册失败，端口重复");
     }
 }

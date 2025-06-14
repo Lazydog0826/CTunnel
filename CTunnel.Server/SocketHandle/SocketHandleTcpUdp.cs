@@ -46,7 +46,7 @@ public class SocketHandleTcpUdp(TunnelContext tunnelContext) : ISocketHandle
                 MessageTypeEnum.Forward,
                 requestItem.RequestId.ToBytes(),
                 temMemory,
-                tunnel.Slim
+                tunnel.ForwardToClientSlim
             );
         }
     }

@@ -12,9 +12,19 @@ public class RequestItem
 
     public Stream TargetSocketStream { get; set; } = null!;
 
+    /// <summary>
+    /// 转发到目标服务限制
+    /// </summary>
+    public SemaphoreSlim ForwardToTargetSlim { get; set; } = new(1);
+
+    /// <summary>
+    /// 关闭
+    /// </summary>
+    /// <param name="pairs"></param>
     public async Task CloseAsync(ConcurrentDictionary<string, RequestItem> pairs)
     {
         pairs.Remove(RequestId, out _);
         await TargetSocket.TryCloseAsync();
+        ForwardToTargetSlim.Dispose();
     }
 }

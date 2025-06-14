@@ -187,18 +187,28 @@ public static partial class SocketExtend
     /// <param name="stream"></param>
     /// <param name="stream2"></param>
     /// <param name="start"></param>
+    /// <param name="slim"></param>
     public static async Task ShardWriteAsync(
         this Stream stream,
         RecyclableMemoryStream stream2,
-        int start
+        int start,
+        SemaphoreSlim slim
     )
     {
-        using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-        stream2.Seek(start, SeekOrigin.Begin);
-        int readCount;
-        while ((readCount = await stream2.ReadAsync(memory.Memory)) != 0)
+        await slim.WaitAsync();
+        try
         {
-            await stream.WriteAsync(memory.Memory[..readCount]);
+            using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+            stream2.Seek(start, SeekOrigin.Begin);
+            int readCount;
+            while ((readCount = await stream2.ReadAsync(memory.Memory)) != 0)
+            {
+                await stream.WriteAsync(memory.Memory[..readCount]);
+            }
+        }
+        finally
+        {
+            slim.Release();
         }
     }
 }
