@@ -2,7 +2,7 @@
   "profiles": {
     "CTunnel.Client": {
       "commandName": "Project",
-      "commandLineArgs": "D:\\Code\\CTunnel\\ClientAppConfig.json"
+      "commandLineArgs": "E:\\SystenFile\\Desktop\\Code\\github\\CTunnel\\ClientAppConfig.json"
     }
   }
 }

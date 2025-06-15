@@ -36,7 +36,6 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                 new Uri($"wss://{appConfig.Server.Host}:{appConfig.Server.Port}"),
                 timeoutToken.Token
             );
-
             TargetSocket? targetSocket = null;
             while (true)
             {
@@ -50,6 +49,7 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                     Output.Print("服务端断开连接", OutputMessageTypeEnum.Error);
                     Environment.Exit(0);
                 }
+
                 try
                 {
                     if (targetSocket == null)
@@ -60,6 +60,14 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                         await targetSocket.ConnectAsync(
                             Encoding.Default.GetString(memory.Memory[..readCount.Count].Span)
                         );
+                        var socket = targetSocket;
+                        TaskExtend.NewTask(
+                            async () =>
+                            {
+                                await socket.ReadAsync(masterSocket, appConfig.ForwardToServerSlim);
+                            },
+                            ex => throw ex
+                        );
                     }
                     else
                     {
@@ -68,18 +76,8 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
 
                     if (readCount.EndOfMessage)
                     {
-                        var socket = targetSocket;
-                        TaskExtend.NewTask(
-                            async () =>
-                            {
-                                await socket.ReadAsync(
-                                    masterSocket,
-                                    appConfig.ForwardToServerSlim,
-                                    appConfig.SocketCreateSlim
-                                );
-                            },
-                            ex => throw ex
-                        );
+                        appConfig.SocketCreateSlim.Release();
+                        await targetSocket.CloseAsync();
                         targetSocket = null;
                     }
                 }
@@ -87,6 +85,7 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                 {
                     if (targetSocket != null)
                     {
+                        appConfig.SocketCreateSlim.Release();
                         await targetSocket.CloseAsync();
                     }
                     targetSocket = null;

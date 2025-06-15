@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using CTunnel.Share;
+using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
 
 namespace CTunnel.Client;
@@ -42,11 +43,7 @@ public class TargetSocket(AppConfig appConfig)
         await _targetSocket.TryCloseAsync();
     }
 
-    public async Task ReadAsync(
-        ClientWebSocket clientWebSocket,
-        SemaphoreSlim forward,
-        SemaphoreSlim createSocket
-    )
+    public async Task ReadAsync(ClientWebSocket clientWebSocket, SemaphoreSlim forward)
     {
         try
         {
@@ -69,7 +66,7 @@ public class TargetSocket(AppConfig appConfig)
                     );
                 }
 
-                var isEnd = _targetSocket.Available == 0;
+                var isEnd = _targetSocket.Available == 0 && appConfig.Type == TunnelTypeEnum.Web;
                 await clientWebSocket.SendAsync(
                     memory.Memory[..readCount],
                     WebSocketMessageType.Binary,
@@ -85,7 +82,6 @@ public class TargetSocket(AppConfig appConfig)
         finally
         {
             forward.Release();
-            createSocket.Release();
             await CloseAsync();
         }
     }

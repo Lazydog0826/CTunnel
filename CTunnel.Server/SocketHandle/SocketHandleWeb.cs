@@ -49,11 +49,11 @@ public static class SocketHandleWeb
                 {
                     if (isHaveSlim == false)
                     {
+                        // 请求的第一波数据
+                        await tunnel.ForwardToClientSlim.WaitAsync();
                         isHaveSlim = true;
                         var newRequestId = Guid.NewGuid().ToString();
                         requestItem.RequestId.TryAdd(newRequestId, 0);
-                        // 请求的第一波数据
-                        await tunnel.ForwardToClientSlim.WaitAsync();
                         await tunnel.WebSocket.SendAsync(
                             newRequestId.ToBytes(),
                             WebSocketMessageType.Binary,
