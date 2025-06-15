@@ -61,6 +61,7 @@ try
             builder.Services.AddSingleton<TunnelContext>();
             builder.Services.AddHostedService<HttpBackendService>();
             builder.Services.AddHostedService<HttpsBackendService>();
+            builder.Services.AddHostedService<RequestSocketBackgroundService>();
             builder.Services.AddSingleton<WebSocketHandleMiddleware>();
 
             #region ISocketHandle
@@ -68,6 +69,7 @@ try
             builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandleHttp>("Http");
             builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandleHttps>("Https");
             builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandleTcpUdp>("TcpUdp");
+            builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandleRequest>("Request");
 
             #endregion ISocketHandle
 

@@ -1,6 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Buffers;
 using System.Net.Sockets;
-using CTunnel.Share.Expand;
 
 namespace CTunnel.Share.Model;
 
@@ -11,29 +10,38 @@ public class RequestItem
     /// </summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
-    public ConcurrentDictionary<string, int> RequestId { get; set; } = [];
-
+    /// <summary>
+    /// 目标Socket
+    /// </summary>
     public Socket TargetSocket { get; set; } = null!;
 
+    /// <summary>
+    /// 目标Stream
+    /// </summary>
     public Stream TargetSocketStream { get; set; } = null!;
 
     /// <summary>
-    /// 转发到目标服务限制
+    /// 转发Socket
     /// </summary>
-    public SemaphoreSlim ForwardToTargetSlim { get; set; } = new(1);
+    public Socket ForwardSocket { get; set; } = null!;
 
     /// <summary>
-    /// 关闭
+    /// 转发Stream
     /// </summary>
-    /// <param name="pairs"></param>
-    public async Task CloseAsync(ConcurrentDictionary<string, RequestItem>? pairs = null)
-    {
-        if (pairs != null)
-        {
-            pairs.Remove(Id, out _);
-        }
-        RequestId.Clear();
-        await TargetSocket.TryCloseAsync();
-        ForwardToTargetSlim.Dispose();
-    }
+    public Stream ForwardSocketStream { get; set; } = null!;
+
+    /// <summary>
+    /// 取消信号
+    /// </summary>
+    public CancellationTokenSource TokenSource { get; set; } = new();
+
+    /// <summary>
+    /// 待发送
+    /// </summary>
+    public IMemoryOwner<byte>? ToBeSent { get; set; }
+
+    /// <summary>
+    /// 待发送字节数
+    /// </summary>
+    public int ToBeSentCount { get; set; }
 }

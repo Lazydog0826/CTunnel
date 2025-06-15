@@ -23,9 +23,4 @@ public class RegisterTunnel
     /// 隧道类型
     /// </summary>
     public TunnelTypeEnum Type { get; set; } = TunnelTypeEnum.Tcp;
-
-    /// <summary>
-    /// 目标服务
-    /// </summary>
-    public UriBuilder TargetUriBuilder { get; set; } = new();
 }

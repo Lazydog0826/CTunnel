@@ -6,9 +6,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
-using CTunnel.Share.Enums;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IO;
 using MiniComp.Core.App;
 using MiniComp.Core.Extension;
 
@@ -92,7 +90,7 @@ public static partial class SocketExtend
                         x509,
                         false,
                         SslProtocols.Tls12 | SslProtocols.Tls13,
-                        true
+                        false
                     );
                 }
                 else
@@ -119,7 +117,7 @@ public static partial class SocketExtend
     /// <returns></returns>
     public static string ParseWebRequest(this Memory<byte> memory)
     {
-        var message = Encoding.UTF8.GetString(memory.Span);
+        var message = Encoding.Default.GetString(memory.Span);
         var hostRegex = HostRegex();
         var match = hostRegex.Match(message);
         if (string.IsNullOrWhiteSpace(match.Value))
@@ -135,4 +133,25 @@ public static partial class SocketExtend
 
     [GeneratedRegex(@"Host:(\s?)", RegexOptions.IgnoreCase, "zh-CN")]
     private static partial Regex HostReplaceRegex();
+
+    /// <summary>
+    /// 转发
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="target"></param>
+    /// <param name="cancellation"></param>
+    /// =
+    public static async Task ForwardAsync(
+        Stream source,
+        Stream target,
+        CancellationToken cancellation
+    )
+    {
+        using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+        int readCount;
+        while ((readCount = await source.ReadAsync(memory.Memory, cancellation)) > 0)
+        {
+            await target.WriteAsync(memory.Memory[..readCount], cancellation);
+        }
+    }
 }

@@ -2,7 +2,7 @@
   "ServerUrl": "127.0.0.1:8888",
   "Token": "TOKEN_TEST",
   "DomainName": "192.168.1.103",
-  "Port": 9999,
-  "Type": 1,
-  "TargetUrl": "144.34.229.108:3306"
+  "Port": 0,
+  "Type": 0,
+  "TargetUrl": "http://localhost:5277"
 }

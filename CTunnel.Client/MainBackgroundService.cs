@@ -17,7 +17,6 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
     {
         try
         {
-            var timeoutToken = new CancellationTokenSource(GlobalStaticConfig.Timeout);
             var masterSocket = new ClientWebSocket();
             masterSocket.Options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
             masterSocket.Options.SetRequestHeader(
@@ -34,12 +33,13 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
             );
             await masterSocket.ConnectAsync(
                 new Uri($"wss://{appConfig.Server.Host}:{appConfig.Server.Port}"),
-                timeoutToken.Token
+                CancellationToken.None
             );
-            TargetSocket? targetSocket = null;
+
+            using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+            await using var ms = GlobalStaticConfig.MsManager.GetStream();
             while (true)
             {
-                var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
                 var readCount = await masterSocket.ReceiveAsync(
                     memory.Memory,
                     CancellationToken.None
@@ -49,46 +49,23 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                     Output.Print("服务端断开连接", OutputMessageTypeEnum.Error);
                     Environment.Exit(0);
                 }
-
-                try
+                await ms.WriteAsync(memory.Memory, CancellationToken.None);
+                if (readCount.EndOfMessage)
                 {
-                    if (targetSocket == null)
+                    try
                     {
-                        await appConfig.SocketCreateSlim.WaitAsync(CancellationToken.None);
-                        targetSocket =
-                            HostApp.RootServiceProvider.GetRequiredService<TargetSocket>();
-                        await targetSocket.ConnectAsync(
-                            Encoding.Default.GetString(memory.Memory[..readCount.Count].Span)
-                        );
-                        var socket = targetSocket;
-                        TaskExtend.NewTask(
-                            async () =>
-                            {
-                                await socket.ReadAsync(masterSocket, appConfig.ForwardToServerSlim);
-                            },
-                            ex => throw ex
-                        );
+                        ms.Seek(0, SeekOrigin.Begin);
+                        var registerRequest = ms.GetMemory().ConvertModel<RegisterRequest>();
+                        registerRequest.Token = appConfig.Token;
+                        TaskExtend.NewTask(async () =>
+                        {
+                            await ForwardSocket.CreateForwardSocketAsync(registerRequest);
+                        });
                     }
-                    else
+                    catch
                     {
-                        await targetSocket.WriteAsync(memory.Memory[..readCount.Count]);
+                        // ignored
                     }
-
-                    if (readCount.EndOfMessage)
-                    {
-                        appConfig.SocketCreateSlim.Release();
-                        await targetSocket.CloseAsync();
-                        targetSocket = null;
-                    }
-                }
-                catch
-                {
-                    if (targetSocket != null)
-                    {
-                        appConfig.SocketCreateSlim.Release();
-                        await targetSocket.CloseAsync();
-                    }
-                    targetSocket = null;
                 }
             }
         }

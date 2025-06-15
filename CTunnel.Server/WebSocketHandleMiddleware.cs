@@ -21,19 +21,20 @@ public class WebSocketHandleMiddleware(
         if (httpContext.WebSockets.IsWebSocketRequest)
         {
             var webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
+            var cancellationToken = new CancellationTokenSource();
             TaskExtend.NewTask(
                 async () =>
                 {
                     await HandleAsync(webSocket, httpContext.Request.Headers);
-                    await webSocket.TryCloseAsync();
                 },
                 async ex =>
                 {
-                    await webSocket.TryCloseAsync(ex.Message);
                     Output.Print(ex.Message, OutputMessageTypeEnum.Error);
+                    await webSocket.TryCloseAsync();
+                    await cancellationToken.CancelAsync();
                 }
             );
-            await Task.Delay(Timeout.InfiniteTimeSpan, httpContext.RequestAborted);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken.Token);
         }
         else
         {
@@ -48,19 +49,16 @@ public class WebSocketHandleMiddleware(
         {
             registerTunnelParam =
                 JsonConvert.DeserializeObject<RegisterTunnel>(registerTunnelParamJson.ToString())
-                ?? throw new Exception("BadRequest");
+                ?? throw new Exception();
         }
         else
         {
-            throw new Exception("BadRequest");
+            throw new Exception();
         }
-
-        // 检查Token
         if (registerTunnelParam.Token != appConfig.Token)
         {
-            throw new Exception("Token无效");
+            throw new Exception();
         }
-
         var newTunnel = new TunnelModel
         {
             DomainName = registerTunnelParam.DomainName,
@@ -68,7 +66,6 @@ public class WebSocketHandleMiddleware(
             ListenPort = registerTunnelParam.ListenPort,
             WebSocket = webSocket,
         };
-
         try
         {
             // 根据隧道类型调用服务
@@ -77,6 +74,7 @@ public class WebSocketHandleMiddleware(
                     registerTunnelParam.Type.ToString()
                 );
             await tunnelTypeHandle.HandleAsync(newTunnel);
+            await Task.Delay(Timeout.InfiniteTimeSpan, CancellationToken.None);
         }
         finally
         {

@@ -14,7 +14,7 @@ public static class BytesExpand
     /// <returns></returns>
     public static T ConvertModel<T>(this Memory<byte> memory)
     {
-        var json = Encoding.UTF8.GetString(memory.Span);
+        var json = Encoding.Default.GetString(memory.Span);
         return JsonConvert.DeserializeObject<T>(json) ?? throw new Exception("json转换失败");
     }
 
@@ -25,6 +25,6 @@ public static class BytesExpand
     /// <returns></returns>
     public static byte[] ToBytes(this string str)
     {
-        return Encoding.UTF8.GetBytes(str);
+        return Encoding.Default.GetBytes(str);
     }
 }

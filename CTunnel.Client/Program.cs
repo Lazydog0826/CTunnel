@@ -32,7 +32,6 @@ try
             builder.ConfigureServices(
                 (_, services) =>
                 {
-                    services.AddTransient<TargetSocket>();
                     services.AddHostedService<MainBackgroundService>();
                     var configJson = File.ReadAllText(configFile);
                     Output.PrintConfig(configJson);

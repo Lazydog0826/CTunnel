@@ -63,7 +63,7 @@ public class TunnelModel
         ForwardToClientSlim.Dispose();
         foreach (var item in ConcurrentDictionary)
         {
-            await item.Value.CloseAsync(ConcurrentDictionary);
+            await item.Value.TokenSource.CancelAsync();
         }
     }
 
@@ -74,8 +74,6 @@ public class TunnelModel
     /// <returns></returns>
     public RequestItem? GetRequestItem(string requestId)
     {
-        return ConcurrentDictionary
-            .FirstOrDefault(x => x.Value.RequestId.TryGetValue(requestId, out _))
-            .Value;
+        return ConcurrentDictionary.TryGetValue(requestId, out var item) ? item : null;
     }
 }
