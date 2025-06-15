@@ -1,6 +1,4 @@
-﻿using System.Collections.Concurrent;
-using CTunnel.Share.Enums;
-using CTunnel.Share.Model;
+﻿using CTunnel.Share.Enums;
 
 namespace CTunnel.Client;
 
@@ -47,12 +45,12 @@ public class AppConfig
     public string TargetUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// 连接池（默认值初始化）
-    /// </summary>
-    public ConcurrentDictionary<string, RequestItem> ConcurrentDictionary { get; set; } = [];
-
-    /// <summary>
     /// 转发到服务器限制
     /// </summary>
     public SemaphoreSlim ForwardToServerSlim { get; set; } = new(1);
+
+    /// <summary>
+    /// Socket创建限制
+    /// </summary>
+    public SemaphoreSlim SocketCreateSlim { get; set; } = new(20);
 }

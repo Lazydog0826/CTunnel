@@ -6,7 +6,12 @@ namespace CTunnel.Share.Model;
 
 public class RequestItem
 {
-    public string RequestId { get; set; } = string.Empty;
+    /// <summary>
+    /// 请求ID
+    /// </summary>
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    public ConcurrentDictionary<string, int> RequestId { get; set; } = [];
 
     public Socket TargetSocket { get; set; } = null!;
 
@@ -21,9 +26,13 @@ public class RequestItem
     /// 关闭
     /// </summary>
     /// <param name="pairs"></param>
-    public async Task CloseAsync(ConcurrentDictionary<string, RequestItem> pairs)
+    public async Task CloseAsync(ConcurrentDictionary<string, RequestItem>? pairs = null)
     {
-        pairs.Remove(RequestId, out _);
+        if (pairs != null)
+        {
+            pairs.Remove(Id, out _);
+        }
+        RequestId.Clear();
         await TargetSocket.TryCloseAsync();
         ForwardToTargetSlim.Dispose();
     }

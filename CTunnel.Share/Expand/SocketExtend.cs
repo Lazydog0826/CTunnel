@@ -113,51 +113,6 @@ public static partial class SocketExtend
     }
 
     /// <summary>
-    /// 转发逻辑
-    /// </summary>
-    /// <param name="webSocket"></param>
-    /// <param name="messageType"></param>
-    /// <param name="requestId"></param>
-    /// <param name="bytes"></param>
-    /// <param name="slim"></param>
-    /// <returns></returns>
-    public static async Task ForwardAsync(
-        this WebSocket webSocket,
-        MessageTypeEnum messageType,
-        Memory<byte> requestId,
-        Memory<byte> bytes,
-        SemaphoreSlim slim
-    )
-    {
-        await slim.WaitAsync();
-        try
-        {
-            await using var ms = GlobalStaticConfig.MsManager.GetStream();
-            ms.Write([(byte)messageType]);
-            await ms.WriteAsync(requestId);
-            await ms.WriteAsync(bytes);
-            ms.Seek(0, SeekOrigin.Begin);
-            using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-            int readCount;
-            var totalCount = 0L;
-            while ((readCount = await ms.ReadAsync(memory.Memory)) != 0)
-            {
-                totalCount += readCount;
-                await webSocket.SendAsync(
-                    memory.Memory[..readCount],
-                    WebSocketMessageType.Binary,
-                    totalCount >= ms.Length,
-                    CancellationToken.None
-                );
-            }
-        }
-        finally
-        {
-            slim.Release();
-        }
-    }
-
-    /// <summary>
     /// 解析WEB请求
     /// </summary>
     /// <param name="memory"></param>
@@ -180,35 +135,4 @@ public static partial class SocketExtend
 
     [GeneratedRegex(@"Host:(\s?)", RegexOptions.IgnoreCase, "zh-CN")]
     private static partial Regex HostReplaceRegex();
-
-    /// <summary>
-    /// 分片写入
-    /// </summary>
-    /// <param name="stream"></param>
-    /// <param name="stream2"></param>
-    /// <param name="start"></param>
-    /// <param name="slim"></param>
-    public static async Task ShardWriteAsync(
-        this Stream stream,
-        RecyclableMemoryStream stream2,
-        int start,
-        SemaphoreSlim slim
-    )
-    {
-        await slim.WaitAsync();
-        try
-        {
-            using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-            stream2.Seek(start, SeekOrigin.Begin);
-            int readCount;
-            while ((readCount = await stream2.ReadAsync(memory.Memory)) != 0)
-            {
-                await stream.WriteAsync(memory.Memory[..readCount]);
-            }
-        }
-        finally
-        {
-            slim.Release();
-        }
-    }
 }

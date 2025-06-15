@@ -74,18 +74,8 @@ public class TunnelModel
     /// <returns></returns>
     public RequestItem? GetRequestItem(string requestId)
     {
-        return ConcurrentDictionary.TryGetValue(requestId, out var ri) ? ri : null;
-    }
-
-    /// <summary>
-    /// 移除请求项
-    /// </summary>
-    /// <param name="requestId"></param>
-    public async Task RemoveRequestItem(string requestId)
-    {
-        if (ConcurrentDictionary.TryGetValue(requestId, out var ri))
-        {
-            await ri.CloseAsync(ConcurrentDictionary);
-        }
+        return ConcurrentDictionary
+            .FirstOrDefault(x => x.Value.RequestId.TryGetValue(requestId, out _))
+            .Value;
     }
 }

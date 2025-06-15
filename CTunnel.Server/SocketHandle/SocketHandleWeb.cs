@@ -1,5 +1,7 @@
 ﻿using System.Buffers;
 using System.Net.Sockets;
+using System.Net.WebSockets;
+using System.Text;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
@@ -14,19 +16,20 @@ public static class SocketHandleWeb
         // 新的Socket连接
         socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
         var socketStream = await socket.GetStreamAsync(isHttps, true, string.Empty);
+        using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+        TunnelModel? tunnel = null;
+
         var requestItem = new RequestItem()
         {
-            RequestId = Guid.NewGuid().ToString(),
+            RequestId = [],
             TargetSocket = socket,
             TargetSocketStream = socketStream,
         };
 
-        using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-        TunnelModel? tunnel = null;
-
         try
         {
             int readCount;
+            var isHaveSlim = false;
             while ((readCount = await socketStream.ReadAsync(memory.Memory)) != 0)
             {
                 // tunnel=null需要解析一遍host
@@ -36,6 +39,7 @@ public static class SocketHandleWeb
                     var host = memory.Memory.ParseWebRequest();
                     // 根据HOST获取隧道
                     tunnel = tunnelContext.GetTunnel(host);
+                    tunnel?.ConcurrentDictionary.TryAdd(requestItem.Id, requestItem);
                 }
 
                 // 如果隧道不存在直接返回404
@@ -45,19 +49,38 @@ public static class SocketHandleWeb
                 }
                 else
                 {
-                    tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
-                    await tunnel.WebSocket.ForwardAsync(
-                        MessageTypeEnum.Forward,
-                        requestItem.RequestId.ToBytes(),
+                    if (isHaveSlim == false)
+                    {
+                        isHaveSlim = true;
+                        var newRequestId = Guid.NewGuid().ToString();
+                        requestItem.RequestId.TryAdd(newRequestId, 0);
+                        // 请求的第一波数据
+                        await tunnel.ForwardToClientSlim.WaitAsync();
+                        await tunnel.WebSocket.SendAsync(
+                            newRequestId.ToBytes(),
+                            WebSocketMessageType.Binary,
+                            false,
+                            CancellationToken.None
+                        );
+                    }
+                    var isEnd = socket.Available == 0;
+                    await tunnel.WebSocket.SendAsync(
                         memory.Memory[..readCount],
-                        tunnel.ForwardToClientSlim
+                        WebSocketMessageType.Binary,
+                        isEnd,
+                        CancellationToken.None
                     );
+                    if (isEnd && isHaveSlim)
+                    {
+                        isHaveSlim = false;
+                        tunnel.ForwardToClientSlim.Release();
+                    }
                 }
             }
         }
         finally
         {
-            await requestItem.CloseAsync(tunnel?.ConcurrentDictionary ?? []);
+            await requestItem.CloseAsync();
         }
     }
 }

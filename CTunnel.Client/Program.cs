@@ -1,7 +1,5 @@
 ﻿using CTunnel.Client;
-using CTunnel.Client.MessageHandle;
 using CTunnel.Share;
-using CTunnel.Share.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -34,12 +32,7 @@ try
             builder.ConfigureServices(
                 (_, services) =>
                 {
-                    services.AddKeyedSingleton<IMessageHandle, MessageHandleForward>(
-                        nameof(MessageTypeEnum.Forward)
-                    );
-                    services.AddKeyedSingleton<IMessageHandle, MessageHandleCloseForward>(
-                        nameof(MessageTypeEnum.CloseForward)
-                    );
+                    services.AddTransient<TargetSocket>();
                     services.AddHostedService<MainBackgroundService>();
                     var configJson = File.ReadAllText(configFile);
                     Output.PrintConfig(configJson);
@@ -49,7 +42,6 @@ try
                         Output.Print("配置文件有误", OutputMessageTypeEnum.Error);
                         Environment.Exit(0);
                     }
-
                     appConfig.Server = new UriBuilder(appConfig.ServerUrl);
                     appConfig.Target = new UriBuilder(appConfig.TargetUrl);
                     services.AddSingleton(appConfig);

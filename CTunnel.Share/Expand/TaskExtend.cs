@@ -7,7 +7,12 @@ public static class TaskExtend
     /// </summary>
     /// <param name="func"></param>
     /// <param name="catchFunc"></param>
-    public static void NewTask(Func<Task> func, Func<Exception, Task>? catchFunc = null)
+    /// <param name="finallyFunc"></param>
+    public static void NewTask(
+        Func<Task> func,
+        Func<Exception, Task>? catchFunc = null,
+        Func<Task>? finallyFunc = null
+    )
     {
         _ = Task.Run(async () =>
         {
@@ -21,6 +26,10 @@ public static class TaskExtend
                 {
                     await catchFunc.Invoke(ex);
                 }
+            }
+            finally
+            {
+                finallyFunc?.Invoke();
             }
         });
     }

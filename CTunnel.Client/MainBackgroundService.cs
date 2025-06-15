@@ -1,8 +1,8 @@
 ﻿using System.Buffers;
 using System.Net.WebSockets;
-using CTunnel.Client.MessageHandle;
+using System.Text;
 using CTunnel.Share;
-using CTunnel.Share.Enums;
+using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -36,11 +36,11 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                 new Uri($"wss://{appConfig.Server.Host}:{appConfig.Server.Port}"),
                 timeoutToken.Token
             );
-            await using var ms = GlobalStaticConfig.MsManager.GetStream();
-            using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
 
+            TargetSocket? targetSocket = null;
             while (true)
             {
+                var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
                 var readCount = await masterSocket.ReceiveAsync(
                     memory.Memory,
                     CancellationToken.None
@@ -50,21 +50,46 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                     Output.Print("服务端断开连接", OutputMessageTypeEnum.Error);
                     Environment.Exit(0);
                 }
-                await ms.WriteAsync(memory.Memory[..readCount.Count], CancellationToken.None);
-                if (readCount.EndOfMessage)
+                try
                 {
-                    ms.Seek(0, SeekOrigin.Begin);
-                    var messageTypeEnum = ms.GetMemory().Span[0];
-                    if (Enum.IsDefined(typeof(MessageTypeEnum), messageTypeEnum))
+                    if (targetSocket == null)
                     {
-                        var type = (MessageTypeEnum)messageTypeEnum;
-                        var messageHandle =
-                            HostApp.RootServiceProvider.GetRequiredKeyedService<IMessageHandle>(
-                                type.ToString()
-                            );
-                        await messageHandle.HandleAsync(masterSocket, ms);
+                        await appConfig.SocketCreateSlim.WaitAsync(CancellationToken.None);
+                        targetSocket =
+                            HostApp.RootServiceProvider.GetRequiredService<TargetSocket>();
+                        await targetSocket.ConnectAsync(
+                            Encoding.Default.GetString(memory.Memory[..readCount.Count].Span)
+                        );
                     }
-                    ms.Reset();
+                    else
+                    {
+                        await targetSocket.WriteAsync(memory.Memory[..readCount.Count]);
+                    }
+
+                    if (readCount.EndOfMessage)
+                    {
+                        var socket = targetSocket;
+                        TaskExtend.NewTask(
+                            async () =>
+                            {
+                                await socket.ReadAsync(
+                                    masterSocket,
+                                    appConfig.ForwardToServerSlim,
+                                    appConfig.SocketCreateSlim
+                                );
+                            },
+                            ex => throw ex
+                        );
+                        targetSocket = null;
+                    }
+                }
+                catch
+                {
+                    if (targetSocket != null)
+                    {
+                        await targetSocket.CloseAsync();
+                    }
+                    targetSocket = null;
                 }
             }
         }
