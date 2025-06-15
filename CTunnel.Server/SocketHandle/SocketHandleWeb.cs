@@ -18,14 +18,12 @@ public static class SocketHandleWeb
         var socketStream = await socket.GetStreamAsync(isHttps, true, string.Empty);
         using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
         TunnelModel? tunnel = null;
-
         var requestItem = new RequestItem()
         {
             RequestId = [],
             TargetSocket = socket,
             TargetSocketStream = socketStream,
         };
-
         try
         {
             int readCount;

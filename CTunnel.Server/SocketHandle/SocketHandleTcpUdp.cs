@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using CTunnel.Share;
 using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
@@ -11,42 +12,62 @@ public class SocketHandleTcpUdp(TunnelContext tunnelContext) : ISocketHandle
 {
     public async Task HandleAsync(Socket socket, int port)
     {
-        // socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-        // var socketStream = await socket.GetStreamAsync(false, true, string.Empty);
-        // using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-        // var requestItem = new RequestItem()
-        // {
-        //     RequestId = Guid.NewGuid().ToString(),
-        //     TargetSocket = socket,
-        //     TargetSocketStream = socketStream,
-        // };
-        // var tunnel = tunnelContext.GetTunnel(port.ToString());
-        // if (tunnel == null)
-        //     return;
-        // tunnel.ConcurrentDictionary.TryAdd(requestItem.RequestId, requestItem);
-        // try
-        // {
-        //     await ForwardToTunnelAsync(Memory<byte>.Empty);
-        //     int readCount;
-        //     while ((readCount = await socketStream.ReadAsync(memory.Memory)) != 0)
-        //     {
-        //         await ForwardToTunnelAsync(memory.Memory[..readCount]);
-        //     }
-        // }
-        // finally
-        // {
-        //     await requestItem.CloseAsync(tunnel.ConcurrentDictionary);
-        // }
-        //
-        // return;
-        //
-        // async Task ForwardToTunnelAsync(Memory<byte> temMemory)
-        // {
-        //     await tunnel.WebSocket.ForwardAsync(
-        //         requestItem.RequestId.ToBytes(),
-        //         temMemory,
-        //         tunnel.ForwardToClientSlim
-        //     );
-        // }
+        socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+        var socketStream = await socket.GetStreamAsync(false, true, string.Empty);
+        using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+        var tunnel = tunnelContext.GetTunnel(port.ToString());
+        if (tunnel == null)
+            return;
+        var requestItem = new RequestItem()
+        {
+            RequestId = [],
+            TargetSocket = socket,
+            TargetSocketStream = socketStream,
+        };
+        tunnel.ConcurrentDictionary.TryAdd(requestItem.Id, requestItem);
+        try
+        {
+            int readCount;
+            var isHaveSlim = false;
+            while ((readCount = await socketStream.ReadAsync(memory.Memory)) != 0)
+            {
+                if (isHaveSlim == false)
+                {
+                    isHaveSlim = true;
+                    var newRequestId = Guid.NewGuid().ToString();
+                    requestItem.RequestId.TryAdd(newRequestId, 0);
+                    // 请求的第一波数据
+                    await tunnel.ForwardToClientSlim.WaitAsync();
+                    await tunnel.WebSocket.SendAsync(
+                        newRequestId.ToBytes(),
+                        WebSocketMessageType.Binary,
+                        false,
+                        CancellationToken.None
+                    );
+                    await tunnel.WebSocket.SendAsync(
+                        ArraySegment<byte>.Empty,
+                        WebSocketMessageType.Binary,
+                        false,
+                        CancellationToken.None
+                    );
+                }
+                var isEnd = socket.Available == 0;
+                await tunnel.WebSocket.SendAsync(
+                    memory.Memory[..readCount],
+                    WebSocketMessageType.Binary,
+                    isEnd,
+                    CancellationToken.None
+                );
+                if (isEnd && isHaveSlim)
+                {
+                    isHaveSlim = false;
+                    tunnel.ForwardToClientSlim.Release();
+                }
+            }
+        }
+        finally
+        {
+            await requestItem.CloseAsync(tunnel.ConcurrentDictionary);
+        }
     }
 }
