@@ -20,13 +20,10 @@ public class TunnelTypeHandleWeb(TunnelContext tunnelContext) : ITunnelTypeHandl
                 WebSocketMessageTypeEnum.ConnectionSuccessful,
                 string.Empty
             );
-            Output.Print($"{tunnel.Key} - 注册隧道成功");
         }
         else
         {
-            const string msg = "域名重复";
-            await tunnel.WebSocket.SendMessageAsync(WebSocketMessageTypeEnum.ConnectionFail, msg);
-            throw new Exception(msg);
+            throw new Exception("域名重复");
         }
     }
 }

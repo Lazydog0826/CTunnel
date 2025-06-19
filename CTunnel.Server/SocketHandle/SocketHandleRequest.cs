@@ -36,11 +36,6 @@ public class SocketHandleRequest(AppConfig appConfig, TunnelContext tunnelContex
 
             requestItem.ForwardSocket = socket;
             requestItem.ForwardSocketStream = forwardSocketStream;
-            requestItem.TokenSource.Token.Register(() =>
-            {
-                requestItem.TargetSocket.TryCloseAsync().Wait();
-                requestItem.ForwardSocket.TryCloseAsync().Wait();
-            });
 
             if (requestItem.ToBeSent != null)
             {

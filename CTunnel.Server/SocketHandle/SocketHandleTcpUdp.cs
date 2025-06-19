@@ -26,6 +26,11 @@ public class SocketHandleTcpUdp(TunnelContext tunnelContext) : ISocketHandle
             ToBeSent = memory,
             ToBeSentCount = 0
         };
+        requestItem.TokenSource.Token.Register(() =>
+        {
+            requestItem.TargetSocket.TryCloseAsync().Wait();
+            requestItem.ForwardSocket.TryCloseAsync().Wait();
+        });
         tunnel.ConcurrentDictionary.TryAdd(requestItem.Id, requestItem);
 
         // 发送新连接通知

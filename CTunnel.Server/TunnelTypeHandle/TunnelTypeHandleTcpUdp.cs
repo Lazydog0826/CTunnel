@@ -32,13 +32,10 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
                 WebSocketMessageTypeEnum.ConnectionSuccessful,
                 string.Empty
             );
-            Output.Print($"{tunnel.Key} - 注册隧道成功");
         }
         else
         {
-            const string msg = "端口重复";
-            await tunnel.WebSocket.SendMessageAsync(WebSocketMessageTypeEnum.ConnectionFail, msg);
-            throw new Exception(msg);
+            throw new Exception("端口重复");
         }
     }
 }

@@ -40,13 +40,19 @@ public static partial class SocketExtend
     /// 尝试关闭
     /// </summary>
     /// <param name="webSocket"></param>
+    /// <param name="msg"></param>
     /// <returns></returns>
-    public static async Task TryCloseAsync(this WebSocket? webSocket)
+    public static async Task TryCloseAsync(this WebSocket? webSocket, string? msg = null)
     {
         if (webSocket != null)
         {
             try
             {
+                if (!string.IsNullOrWhiteSpace(msg))
+                {
+                    await webSocket.SendMessageAsync(WebSocketMessageTypeEnum.ConnectionFail, msg);
+                    await Task.Delay(1000);
+                }
                 webSocket.Abort();
             }
             catch

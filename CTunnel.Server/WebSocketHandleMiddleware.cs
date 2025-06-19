@@ -26,12 +26,15 @@ public class WebSocketHandleMiddleware(
                 async () =>
                 {
                     await HandleAsync(webSocket, httpContext.Request.Headers);
-                    await cancellationToken.CancelAsync();
                 },
                 async ex =>
                 {
-                    Output.Print(ex.Message, OutputMessageTypeEnum.Error);
-                    await webSocket.TryCloseAsync();
+                    Output.PrintException(ex);
+                    await webSocket.TryCloseAsync(ex.Message);
+                    await Task.CompletedTask;
+                },
+                async () =>
+                {
                     await cancellationToken.CancelAsync();
                 }
             );
@@ -79,7 +82,12 @@ public class WebSocketHandleMiddleware(
             var tunnelTypeHandle =
                 HostApp.RootServiceProvider.GetRequiredKeyedService<ITunnelTypeHandle>(tunnelType);
             await tunnelTypeHandle.HandleAsync(newTunnel);
-            await Task.Delay(Timeout.InfiniteTimeSpan, CancellationToken.None);
+            await webSocket.ReceiveMessageAsync(
+                async (_, _) =>
+                {
+                    await Task.CompletedTask;
+                }
+            );
         }
         finally
         {
@@ -91,7 +99,6 @@ public class WebSocketHandleMiddleware(
             {
                 await newTunnel.CloseAsync();
             }
-            Output.Print($"{newTunnel.Key} - 连接已断开", OutputMessageTypeEnum.Error);
         }
     }
 }

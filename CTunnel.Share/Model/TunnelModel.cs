@@ -49,18 +49,11 @@ public class TunnelModel
     public Socket? ListenSocket { get; set; }
 
     /// <summary>
-    /// 信号量，阻止发送消息并发
-    /// </summary>
-    public SemaphoreSlim ForwardToClientSlim { get; set; } = new(1);
-
-    /// <summary>
     /// 关闭所有相关内容
     /// </summary>
-    /// <returns></returns>
     public async Task CloseAsync()
     {
         await ListenSocket.TryCloseAsync();
-        ForwardToClientSlim.Dispose();
         foreach (var item in ConcurrentDictionary)
         {
             await item.Value.TokenSource.CancelAsync();

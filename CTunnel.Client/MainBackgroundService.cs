@@ -43,6 +43,7 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                         case WebSocketMessageTypeEnum.ConnectionFail:
                             var msg = JsonConvert.DeserializeObject<string>(data);
                             Output.Print(msg ?? "连接失败", OutputMessageTypeEnum.Error);
+                            Environment.Exit(0);
                             break;
                         case WebSocketMessageTypeEnum.NewRequest:
                             try

@@ -23,7 +23,11 @@ public static class Output
 
     public static void PrintException(Exception ex)
     {
-        if (ex is not AuthenticationException && ex is not OperationCanceledException)
+        if (
+            ex is not AuthenticationException
+            && ex is not OperationCanceledException
+            && !string.IsNullOrWhiteSpace(ex.Message)
+        )
         {
             Print(ex.Message, OutputMessageTypeEnum.Error);
         }

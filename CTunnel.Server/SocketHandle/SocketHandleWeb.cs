@@ -33,6 +33,11 @@ public static class SocketHandleWeb
             ToBeSent = memory,
             ToBeSentCount = readCount
         };
+        requestItem.TokenSource.Token.Register(() =>
+        {
+            requestItem.TargetSocket.TryCloseAsync().Wait();
+            requestItem.ForwardSocket.TryCloseAsync().Wait();
+        });
         tunnel.ConcurrentDictionary.TryAdd(requestItem.Id, requestItem);
 
         // 发送新连接通知
