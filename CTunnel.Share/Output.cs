@@ -23,7 +23,7 @@ public static class Output
 
     public static void PrintException(Exception ex)
     {
-        if (ex is not AuthenticationException and OperationCanceledException)
+        if (ex is not AuthenticationException && ex is not OperationCanceledException)
         {
             Print(ex.Message, OutputMessageTypeEnum.Error);
         }
