@@ -1,10 +1,9 @@
 ﻿using System.Buffers;
 using System.Net.Sockets;
-using System.Net.WebSockets;
+using CTunnel.Share;
 using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
 using MiniComp.Autofac;
-using Newtonsoft.Json;
 
 namespace CTunnel.Server.SocketHandle;
 
@@ -35,12 +34,9 @@ public class SocketHandleTcpUdp(TunnelContext tunnelContext) : ISocketHandle
             TunnelKey = tunnel.Key,
             RequestId = requestItem.Id
         };
-        var bytes = JsonConvert.SerializeObject(registerRequest).ToBytes();
-        await tunnel.WebSocket.SendAsync(
-            bytes,
-            WebSocketMessageType.Binary,
-            true,
-            CancellationToken.None
+        await tunnel.WebSocket.SendMessageAsync(
+            WebSocketMessageTypeEnum.NewRequest,
+            registerRequest
         );
         await Task.Delay(Timeout.InfiniteTimeSpan, requestItem.TokenSource.Token);
     }

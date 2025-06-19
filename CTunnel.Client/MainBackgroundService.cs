@@ -42,7 +42,7 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                             break;
                         case WebSocketMessageTypeEnum.ConnectionFail:
                             var msg = JsonConvert.DeserializeObject<string>(data);
-                            Output.Print(msg ?? "连接失败");
+                            Output.Print(msg ?? "连接失败", OutputMessageTypeEnum.Error);
                             break;
                         case WebSocketMessageTypeEnum.NewRequest:
                             try
@@ -73,7 +73,7 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
         }
         catch (Exception ex)
         {
-            Output.Print(ex.Message, OutputMessageTypeEnum.Error);
+            Output.PrintException(ex);
             Environment.Exit(0);
         }
     }

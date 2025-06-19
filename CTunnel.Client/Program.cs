@@ -56,6 +56,6 @@ try
 }
 catch (Exception ex)
 {
-    Output.Print(ex.Message, OutputMessageTypeEnum.Error);
+    Output.PrintException(ex);
     Environment.Exit(0);
 }

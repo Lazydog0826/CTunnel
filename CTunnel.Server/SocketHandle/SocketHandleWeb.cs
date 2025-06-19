@@ -1,12 +1,8 @@
 ﻿using System.Buffers;
 using System.Net.Sockets;
-using System.Net.WebSockets;
-using System.Text;
 using CTunnel.Share;
-using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
-using Newtonsoft.Json;
 
 namespace CTunnel.Server.SocketHandle;
 
@@ -45,12 +41,9 @@ public static class SocketHandleWeb
             TunnelKey = tunnel.Key,
             RequestId = requestItem.Id
         };
-        var bytes = JsonConvert.SerializeObject(registerRequest).ToBytes();
-        await tunnel.WebSocket.SendAsync(
-            bytes,
-            WebSocketMessageType.Binary,
-            true,
-            CancellationToken.None
+        await tunnel.WebSocket.SendMessageAsync(
+            WebSocketMessageTypeEnum.NewRequest,
+            registerRequest
         );
         await Task.Delay(Timeout.InfiniteTimeSpan, requestItem.TokenSource.Token);
     }

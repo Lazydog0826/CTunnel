@@ -1,4 +1,5 @@
-﻿using Spectre.Console;
+﻿using System.Security.Authentication;
+using Spectre.Console;
 using Spectre.Console.Json;
 
 namespace CTunnel.Share;
@@ -12,17 +13,20 @@ public static class Output
     {
         var (color, type) = outputMessageType switch
         {
-            OutputMessageTypeEnum.Info => ("lime", "INFO "),
             OutputMessageTypeEnum.Error => ("red", "ERROR"),
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(outputMessageType),
-                outputMessageType,
-                null
-            ),
+            _ => ("lime", "INFO ")
         };
         AnsiConsole.MarkupLine(
             $"[grey]{DateTime.Now:yyyy-MM-dd HH:mm:ss}[/] [{color}]{type}[/] - {msg}"
         );
+    }
+
+    public static void PrintException(Exception ex)
+    {
+        if (ex is not AuthenticationException and OperationCanceledException)
+        {
+            Print(ex.Message, OutputMessageTypeEnum.Error);
+        }
     }
 
     public static void PrintConfig(string config)

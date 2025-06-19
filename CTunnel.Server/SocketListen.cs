@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using System.Security.Authentication;
 using CTunnel.Server.SocketHandle;
 using CTunnel.Share;
 using CTunnel.Share.Expand;
@@ -30,8 +31,8 @@ public static class SocketListen
                     },
                     async ex =>
                     {
-                        Output.Print(ex.Message, OutputMessageTypeEnum.Error);
                         await newConnect.TryCloseAsync();
+                        Output.PrintException(ex);
                     }
                 );
             }

@@ -77,30 +77,20 @@ public static partial class SocketExtend
         {
             // 使用安全套接字层（SSL）安全协议，忽略证书验证
             var ssl = new SslStream(stream, false, (_, _, _, _) => true);
-            try
+            if (isServer)
             {
-                if (isServer)
-                {
-                    var x509 = HostApp.RootServiceProvider.GetRequiredService<X509Certificate2>();
-                    await ssl.AuthenticateAsServerAsync(
-                        x509,
-                        false,
-                        SslProtocols.Tls12 | SslProtocols.Tls13,
-                        false
-                    );
-                }
-                else
-                {
-                    await ssl.AuthenticateAsClientAsync(targetHost);
-                }
+                var x509 = HostApp.RootServiceProvider.GetRequiredService<X509Certificate2>();
+                await ssl.AuthenticateAsServerAsync(
+                    x509,
+                    false,
+                    SslProtocols.Tls12 | SslProtocols.Tls13,
+                    false
+                );
             }
-            catch (AuthenticationException ex)
+            else
             {
-                Output.Print(ex.Message, OutputMessageTypeEnum.Error);
-                await socket.TryCloseAsync();
-                throw;
+                await ssl.AuthenticateAsClientAsync(targetHost);
             }
-
             return ssl;
         }
         return stream;
