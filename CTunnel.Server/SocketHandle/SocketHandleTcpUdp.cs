@@ -3,10 +3,12 @@ using System.Net.Sockets;
 using System.Net.WebSockets;
 using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
+using MiniComp.Autofac;
 using Newtonsoft.Json;
 
 namespace CTunnel.Server.SocketHandle;
 
+[AutofacDependency(typeof(ISocketHandle), ServiceKey = "TcpUdp")]
 public class SocketHandleTcpUdp(TunnelContext tunnelContext) : ISocketHandle
 {
     public async Task HandleAsync(Socket socket, int port)

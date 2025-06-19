@@ -48,7 +48,7 @@ try
             );
             await Task.CompletedTask;
         },
-        async app =>
+        async _ =>
         {
             await Task.CompletedTask;
         }

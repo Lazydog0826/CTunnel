@@ -3,9 +3,11 @@ using System.Net.Sockets;
 using CTunnel.Share;
 using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
+using MiniComp.Autofac;
 
 namespace CTunnel.Server.SocketHandle;
 
+[AutofacDependency(typeof(ISocketHandle), ServiceKey = "Request")]
 public class SocketHandleRequest(AppConfig appConfig, TunnelContext tunnelContext) : ISocketHandle
 {
     public async Task HandleAsync(Socket socket, int port)
@@ -19,17 +21,17 @@ public class SocketHandleRequest(AppConfig appConfig, TunnelContext tunnelContex
             memory.Dispose();
             if (registerRequest.Token != appConfig.Token)
             {
-                throw new Exception();
+                throw new Exception("请求TCP连接 - TOKEN无效");
             }
             var tunnel = tunnelContext.GetTunnel(registerRequest.TunnelKey);
             if (tunnel == null)
             {
-                throw new Exception();
+                throw new Exception("请求TCP连接 - 未找到对应隧道");
             }
             var requestItem = tunnel.GetRequestItem(registerRequest.RequestId);
             if (requestItem == null)
             {
-                throw new Exception();
+                throw new Exception("请求TCP连接 - 未找到对应请求");
             }
 
             requestItem.ForwardSocket = socket;

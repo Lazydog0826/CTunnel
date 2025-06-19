@@ -1,8 +1,11 @@
 ﻿using System.Collections.Concurrent;
 using CTunnel.Share.Model;
+using Microsoft.Extensions.DependencyInjection;
+using MiniComp.Autofac;
 
 namespace CTunnel.Server;
 
+[AutofacDependency(typeof(TunnelContext), ServiceLifetime = ServiceLifetime.Singleton)]
 public class TunnelContext
 {
     private readonly ConcurrentDictionary<string, TunnelModel> _tunnels = [];

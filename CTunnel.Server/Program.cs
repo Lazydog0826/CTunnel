@@ -1,16 +1,15 @@
 ﻿using CTunnel.Server;
 using CTunnel.Server.BackendService;
-using CTunnel.Server.SocketHandle;
-using CTunnel.Server.TunnelTypeHandle;
 using CTunnel.Share;
-using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.WebSockets;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using MiniComp.Autofac;
 using MiniComp.Core.App;
+using MiniComp.Core.Extension;
 using Newtonsoft.Json;
 
 try
@@ -31,6 +30,12 @@ try
         [],
         async builder =>
         {
+            builder.Host.UseAutofac();
+            builder.Services.AutoAddDependency(
+                ObjectExtension
+                    .GetAssemblyByRegex(AssemblyRegex.Create())
+                    .GetTypeListByAssemblyList()
+            );
             builder.Logging.ClearProviders();
             var configJson = File.ReadAllText(configFile);
             Output.PrintConfig(configJson);
@@ -40,7 +45,6 @@ try
                 Output.Print("配置文件有误", OutputMessageTypeEnum.Error);
                 Environment.Exit(0);
             }
-
             builder.Services.AddSingleton(appConfig);
             var certificate = CertificateExtend.LoadPem(
                 appConfig.Certificate,
@@ -58,34 +62,9 @@ try
                 );
             });
             builder.Services.AddWebSockets(_ => { });
-            builder.Services.AddSingleton<TunnelContext>();
             builder.Services.AddHostedService<HttpBackendService>();
             builder.Services.AddHostedService<HttpsBackendService>();
             builder.Services.AddHostedService<RequestSocketBackgroundService>();
-            builder.Services.AddSingleton<WebSocketHandleMiddleware>();
-
-            #region ISocketHandle
-
-            builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandleHttp>("Http");
-            builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandleHttps>("Https");
-            builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandleTcpUdp>("TcpUdp");
-            builder.Services.AddKeyedSingleton<ISocketHandle, SocketHandleRequest>("Request");
-
-            #endregion ISocketHandle
-
-            #region ITunnelTypeHandle
-
-            builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandleWeb>(
-                nameof(TunnelTypeEnum.Web)
-            );
-            builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandleTcpUdp>(
-                nameof(TunnelTypeEnum.Tcp)
-            );
-            builder.Services.AddKeyedSingleton<ITunnelTypeHandle, TunnelTypeHandleTcpUdp>(
-                nameof(TunnelTypeEnum.Udp)
-            );
-
-            #endregion ITunnelTypeHandle
 
             await Task.CompletedTask;
         },

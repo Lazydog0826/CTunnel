@@ -2,7 +2,7 @@
   "ServerPort": 8888,
   "HttpPort": 8080,
   "HttpsPort": 4433,
-  "Certificate": "cert.pem",
-  "CertificateKey": "private.key",
+  "Certificate": "E:\\SystenFile\\Desktop\\Code\\github\\CTunnel\\cert.pem",
+  "CertificateKey": "E:\\SystenFile\\Desktop\\Code\\github\\CTunnel\\private.key",
   "Token": "TOKEN_TEST"
 }

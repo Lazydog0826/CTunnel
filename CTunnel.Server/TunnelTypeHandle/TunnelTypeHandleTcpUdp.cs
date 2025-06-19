@@ -1,15 +1,18 @@
 ﻿using CTunnel.Server.SocketHandle;
 using CTunnel.Share;
+using CTunnel.Share.Enums;
 using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
 using Microsoft.Extensions.DependencyInjection;
+using MiniComp.Autofac;
 using MiniComp.Core.App;
 
 namespace CTunnel.Server.TunnelTypeHandle;
 
+[AutofacDependency(typeof(ITunnelTypeHandle), ServiceKey = nameof(TunnelTypeEnum.Tcp))]
 public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHandle
 {
-    public Task HandleAsync(TunnelModel tunnel)
+    public async Task HandleAsync(TunnelModel tunnel)
     {
         // Tcp和Udp的key为监听的端口
         tunnel.Key = tunnel.ListenPort.ToString();
@@ -25,12 +28,17 @@ public class TunnelTypeHandleTcpUdp(TunnelContext tunnelContext) : ITunnelTypeHa
                 tunnel.ListenPort,
                 socketHandle
             );
+            await tunnel.WebSocket.SendMessageAsync(
+                WebSocketMessageTypeEnum.ConnectionSuccessful,
+                string.Empty
+            );
             Output.Print($"{tunnel.Key} - 注册隧道成功");
         }
         else
         {
-            throw new Exception("注册失败，端口重复");
+            const string msg = "端口重复";
+            await tunnel.WebSocket.SendMessageAsync(WebSocketMessageTypeEnum.ConnectionFail, msg);
+            throw new Exception(msg);
         }
-        return Task.CompletedTask;
     }
 }

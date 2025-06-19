@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using MiniComp.Core.App;
 using MiniComp.Core.Extension;
+using Newtonsoft.Json;
 
 namespace CTunnel.Share.Expand;
 
@@ -21,37 +22,31 @@ public static partial class SocketExtend
     /// <returns></returns>
     public static async Task TryCloseAsync(this Socket? socket)
     {
-        if (socket is { Connected: true })
+        if (socket != null)
         {
             try
             {
                 socket.Close();
-                await Task.CompletedTask;
             }
             catch
             {
                 // ignored
             }
         }
+        await Task.CompletedTask;
     }
 
     /// <summary>
     /// 尝试关闭
     /// </summary>
     /// <param name="webSocket"></param>
-    /// <param name="msg"></param>
     /// <returns></returns>
-    public static async Task TryCloseAsync(this WebSocket? webSocket, string? msg = null)
+    public static async Task TryCloseAsync(this WebSocket? webSocket)
     {
-        if (webSocket is { State: WebSocketState.Open })
+        if (webSocket != null)
         {
             try
             {
-                await webSocket.CloseAsync(
-                    WebSocketCloseStatus.InternalServerError,
-                    msg,
-                    CancellationToken.None
-                );
                 webSocket.Abort();
             }
             catch
@@ -59,6 +54,7 @@ public static partial class SocketExtend
                 // ignored
             }
         }
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -152,6 +148,63 @@ public static partial class SocketExtend
         while ((readCount = await source.ReadAsync(memory.Memory, cancellation)) > 0)
         {
             await target.WriteAsync(memory.Memory[..readCount], cancellation);
+        }
+    }
+
+    /// <summary>
+    /// 发送websocket消息
+    /// </summary>
+    /// <param name="webSocket"></param>
+    /// <param name="type"></param>
+    /// <param name="data"></param>
+    public static async Task SendMessageAsync(
+        this WebSocket webSocket,
+        WebSocketMessageTypeEnum type,
+        object data
+    )
+    {
+        var model = new WebSocketMessageModel
+        {
+            MessageType = type,
+            Data = JsonConvert.SerializeObject(data)
+        };
+        await webSocket.SendAsync(
+            JsonConvert.SerializeObject(model).ToBytes(),
+            WebSocketMessageType.Binary,
+            true,
+            CancellationToken.None
+        );
+    }
+
+    /// <summary>
+    /// 接收消息
+    /// </summary>
+    /// <param name="webSocket"></param>
+    /// <param name="func"></param>
+    public static async Task ReceiveMessageAsync(
+        this WebSocket webSocket,
+        Func<WebSocketMessageTypeEnum, string, Task> func
+    )
+    {
+        using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
+        await using var ms = GlobalStaticConfig.MsManager.GetStream();
+        while (!CancellationToken.None.IsCancellationRequested)
+        {
+            var readCount = await webSocket.ReceiveAsync(memory.Memory, CancellationToken.None);
+            await ms.WriteAsync(memory.Memory[..readCount.Count]);
+            if (readCount.EndOfMessage)
+            {
+                ms.Seek(0, SeekOrigin.Begin);
+                try
+                {
+                    var model = ms.GetMemory().ConvertModel<WebSocketMessageModel>();
+                    await func(model.MessageType, model.Data);
+                }
+                catch
+                {
+                    // ignored
+                }
+            }
         }
     }
 }

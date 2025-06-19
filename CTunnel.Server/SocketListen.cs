@@ -19,7 +19,7 @@ public static class SocketListen
         socket.Listen();
         TaskExtend.NewTask(async () =>
         {
-            while (true)
+            while (!CancellationToken.None.IsCancellationRequested)
             {
                 var newConnect = await socket.AcceptAsync();
                 TaskExtend.NewTask(
@@ -35,7 +35,6 @@ public static class SocketListen
                     }
                 );
             }
-            // ReSharper disable once FunctionNeverReturns
         });
         return socket;
     }

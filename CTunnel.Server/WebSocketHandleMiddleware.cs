@@ -26,6 +26,7 @@ public class WebSocketHandleMiddleware(
                 async () =>
                 {
                     await HandleAsync(webSocket, httpContext.Request.Headers);
+                    await cancellationToken.CancelAsync();
                 },
                 async ex =>
                 {
@@ -44,35 +45,39 @@ public class WebSocketHandleMiddleware(
 
     private async Task HandleAsync(WebSocket webSocket, IHeaderDictionary headers)
     {
-        RegisterTunnel registerTunnelParam;
-        if (headers.TryGetValue("RegisterTunnelParam", out var registerTunnelParamJson))
+        RegisterTunnel? registerTunnel = null;
+        if (headers.TryGetValue("Authorization", out var authorizationJson))
         {
-            registerTunnelParam =
-                JsonConvert.DeserializeObject<RegisterTunnel>(registerTunnelParamJson.ToString())
-                ?? throw new Exception();
+            try
+            {
+                registerTunnel = JsonConvert.DeserializeObject<RegisterTunnel>(
+                    authorizationJson.ToString()
+                );
+            }
+            catch
+            {
+                // ignored
+            }
         }
-        else
+        if (registerTunnel == null || registerTunnel.Token != appConfig.Token)
         {
-            throw new Exception();
-        }
-        if (registerTunnelParam.Token != appConfig.Token)
-        {
-            throw new Exception();
+            await webSocket.SendMessageAsync(WebSocketMessageTypeEnum.ConnectionFail, "鉴权未通过");
+            await webSocket.TryCloseAsync();
+            return;
         }
         var newTunnel = new TunnelModel
         {
-            DomainName = registerTunnelParam.DomainName,
-            Type = registerTunnelParam.Type,
-            ListenPort = registerTunnelParam.ListenPort,
+            DomainName = registerTunnel.DomainName,
+            Type = registerTunnel.Type,
+            ListenPort = registerTunnel.ListenPort,
             WebSocket = webSocket,
         };
         try
         {
             // 根据隧道类型调用服务
+            var tunnelType = registerTunnel.Type.ToString();
             var tunnelTypeHandle =
-                HostApp.RootServiceProvider.GetRequiredKeyedService<ITunnelTypeHandle>(
-                    registerTunnelParam.Type.ToString()
-                );
+                HostApp.RootServiceProvider.GetRequiredKeyedService<ITunnelTypeHandle>(tunnelType);
             await tunnelTypeHandle.HandleAsync(newTunnel);
             await Task.Delay(Timeout.InfiniteTimeSpan, CancellationToken.None);
         }

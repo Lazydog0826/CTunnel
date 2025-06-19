@@ -13,7 +13,7 @@ public static class ForwardSocket
     public static async Task CreateForwardSocketAsync(RegisterRequest request)
     {
         var appConfig = HostApp.RootServiceProvider.GetRequiredService<AppConfig>();
-
+        request.Token = appConfig.Token;
         var requestItem = new RequestItem
         {
             Id = request.RequestId,

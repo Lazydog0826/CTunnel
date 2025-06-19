@@ -1,12 +1,8 @@
-﻿using System.Buffers;
-using System.Net.WebSockets;
-using System.Text;
+﻿using System.Net.WebSockets;
 using CTunnel.Share;
 using CTunnel.Share.Expand;
 using CTunnel.Share.Model;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using MiniComp.Core.App;
 using Newtonsoft.Json;
 
 namespace CTunnel.Client;
@@ -20,7 +16,7 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
             var masterSocket = new ClientWebSocket();
             masterSocket.Options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
             masterSocket.Options.SetRequestHeader(
-                "RegisterTunnelParam",
+                "Authorization",
                 JsonConvert.SerializeObject(
                     new RegisterTunnel
                     {
@@ -36,38 +32,44 @@ public class MainBackgroundService(AppConfig appConfig) : BackgroundService
                 CancellationToken.None
             );
 
-            using var memory = MemoryPool<byte>.Shared.Rent(GlobalStaticConfig.BufferSize);
-            await using var ms = GlobalStaticConfig.MsManager.GetStream();
-            while (true)
-            {
-                var readCount = await masterSocket.ReceiveAsync(
-                    memory.Memory,
-                    CancellationToken.None
-                );
-                if (readCount.MessageType == WebSocketMessageType.Close)
+            await masterSocket.ReceiveMessageAsync(
+                async (type, data) =>
                 {
-                    Output.Print("服务端断开连接", OutputMessageTypeEnum.Error);
-                    Environment.Exit(0);
-                }
-                await ms.WriteAsync(memory.Memory, CancellationToken.None);
-                if (readCount.EndOfMessage)
-                {
-                    try
+                    switch (type)
                     {
-                        ms.Seek(0, SeekOrigin.Begin);
-                        var registerRequest = ms.GetMemory().ConvertModel<RegisterRequest>();
-                        registerRequest.Token = appConfig.Token;
-                        TaskExtend.NewTask(async () =>
-                        {
-                            await ForwardSocket.CreateForwardSocketAsync(registerRequest);
-                        });
+                        case WebSocketMessageTypeEnum.ConnectionSuccessful:
+                            Output.Print("连接成功");
+                            break;
+                        case WebSocketMessageTypeEnum.ConnectionFail:
+                            var msg = JsonConvert.DeserializeObject<string>(data);
+                            Output.Print(msg ?? "连接失败");
+                            break;
+                        case WebSocketMessageTypeEnum.NewRequest:
+                            try
+                            {
+                                var registerRequest =
+                                    JsonConvert.DeserializeObject<RegisterRequest>(data);
+                                if (registerRequest != null)
+                                {
+                                    TaskExtend.NewTask(async () =>
+                                    {
+                                        await ForwardSocket.CreateForwardSocketAsync(
+                                            registerRequest
+                                        );
+                                    });
+                                }
+                            }
+                            catch
+                            {
+                                // ignored
+                            }
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(type), type, null);
                     }
-                    catch
-                    {
-                        // ignored
-                    }
+                    await Task.CompletedTask;
                 }
-            }
+            );
         }
         catch (Exception ex)
         {
